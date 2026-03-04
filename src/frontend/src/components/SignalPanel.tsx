@@ -8,7 +8,9 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useState } from "react";
 import type { CandlePattern, SignalResult } from "../utils/chartEngine";
+import { CaptureThumb } from "./ScreenCapture";
 
 interface SignalPanelProps {
   signal: SignalResult | null;
@@ -22,6 +24,19 @@ interface SignalPanelProps {
   isWindowVisible?: boolean;
   onBuyClick?: () => void;
   onSellClick?: () => void;
+  captureDataUrl?: string | null;
+  onClearCapture?: () => void;
+  geminiAnalysis?: string | null;
+  isGeminiAnalyzing?: boolean;
+}
+
+function AnimatedDots() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setCount((c) => (c + 1) % 4), 400);
+    return () => clearInterval(id);
+  }, []);
+  return <span>{".".repeat(count + 1)}</span>;
 }
 
 function RSIBar({ value }: { value: number }) {
@@ -227,6 +242,10 @@ export function SignalPanel({
   isWindowVisible = true,
   onBuyClick,
   onSellClick,
+  captureDataUrl,
+  onClearCapture,
+  geminiAnalysis,
+  isGeminiAnalyzing = false,
 }: SignalPanelProps) {
   const isGlowBuy = signal?.direction === "buy";
   const isGlowSell = signal?.direction === "sell";
@@ -392,6 +411,11 @@ export function SignalPanel({
         </motion.button>
       </div>
 
+      {/* Capture thumbnail (shown above ANÁLISE IA when a capture exists) */}
+      {captureDataUrl && onClearCapture && (
+        <CaptureThumb dataUrl={captureDataUrl} onClear={onClearCapture} />
+      )}
+
       {/* AI Analysis Text */}
       <div
         className="rounded-xl p-4"
@@ -418,11 +442,32 @@ export function SignalPanel({
           >
             ANÁLISE IA
           </span>
-          {isAnalyzing && isWindowVisible && (
+          {/* Gemini badge — shown when Gemini analysis is active or done */}
+          {(isGeminiAnalyzing || !!geminiAnalysis) && isWindowVisible && (
+            <span
+              className="text-[8px] font-mono tracking-widest px-1.5 py-0.5 rounded"
+              style={{
+                background: "rgba(0,229,255,0.1)",
+                border: "1px solid rgba(0,229,255,0.25)",
+                color: "#00e5ff",
+              }}
+            >
+              GEMINI
+            </span>
+          )}
+          {isAnalyzing && isWindowVisible && !isGeminiAnalyzing && (
             <motion.div
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 0.6, repeat: Number.POSITIVE_INFINITY }}
               className="ml-auto w-1.5 h-1.5 rounded-full bg-yellow-400"
+            />
+          )}
+          {isGeminiAnalyzing && isWindowVisible && (
+            <motion.div
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 0.4, repeat: Number.POSITIVE_INFINITY }}
+              className="ml-auto w-1.5 h-1.5 rounded-full"
+              style={{ background: "#00e5ff" }}
             />
           )}
           {!isWindowVisible && (
@@ -461,6 +506,94 @@ export function SignalPanel({
               <span className="text-[10px] font-mono text-white/20 text-center">
                 Retorne para continuar análise
               </span>
+            </motion.div>
+          ) : isGeminiAnalyzing ? (
+            <motion.div
+              key="gemini-analyzing"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.3 }}
+              className="flex flex-col items-center gap-3 py-3"
+              data-ocid="signal.loading_state"
+            >
+              <div className="flex items-center gap-2">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    duration: 1.2,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "linear",
+                  }}
+                >
+                  <Brain size={18} style={{ color: "#00e5ff" }} />
+                </motion.div>
+                <span
+                  className="text-sm font-mono font-bold tracking-widest"
+                  style={{ color: "#00e5ff" }}
+                >
+                  GEMINI ANALISANDO
+                  <AnimatedDots />
+                </span>
+              </div>
+              <div className="flex gap-1.5">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: "#00e5ff" }}
+                    animate={{ opacity: [0.2, 1, 0.2] }}
+                    transition={{
+                      duration: 0.9,
+                      repeat: Number.POSITIVE_INFINITY,
+                      delay: i * 0.14,
+                    }}
+                  />
+                ))}
+              </div>
+              <span
+                className="text-[10px] font-mono tracking-widest"
+                style={{ color: "rgba(0,229,255,0.35)" }}
+              >
+                PROCESSANDO IMAGEM DO GRÁFICO
+              </span>
+            </motion.div>
+          ) : geminiAnalysis ? (
+            <motion.div
+              key="gemini-result"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.4 }}
+              className="space-y-2"
+            >
+              {geminiAnalysis
+                .split("\n")
+                .filter(Boolean)
+                .map((line, i) => (
+                  <p
+                    // biome-ignore lint/suspicious/noArrayIndexKey: static list from API response
+                    key={i}
+                    className="text-[12px] font-mono leading-relaxed text-white/70"
+                  >
+                    <span
+                      style={{ color: "rgba(0,229,255,0.5)" }}
+                      className="mr-1.5"
+                    >
+                      ›
+                    </span>
+                    {line}
+                  </p>
+                ))}
+              <p
+                className="text-[9px] font-mono tracking-widest mt-3 pt-2"
+                style={{
+                  color: "rgba(0,229,255,0.4)",
+                  borderTop: "1px solid rgba(0,229,255,0.1)",
+                }}
+              >
+                ANÁLISE VIA GEMINI VISION
+              </p>
             </motion.div>
           ) : (
             <motion.div

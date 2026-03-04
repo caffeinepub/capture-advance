@@ -1,8 +1,9 @@
-import { Check, ExternalLink, Pencil } from "lucide-react";
+import { Check, ExternalLink, Pencil, Wifi, WifiOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CountdownPanel } from "./components/CountdownPanel";
+import { ScreenCaptureButton } from "./components/ScreenCapture";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SignalHistory } from "./components/SignalHistory";
 import { SignalPanel } from "./components/SignalPanel";
@@ -18,6 +19,11 @@ import {
   useSaveSignal,
   useUpdateSettings,
 } from "./hooks/useQueries";
+import {
+  fetchBinanceCandles,
+  fetchTickerInfo,
+  isCryptoPair,
+} from "./utils/binanceApi";
 import {
   type Candle,
   type CandlePattern,
@@ -69,8 +75,12 @@ export default function App() {
   const [bid, setBid] = useState(4500);
   const [ask, setAsk] = useState(4503.5);
   const [lastPrice, setLastPrice] = useState(4501.2);
-  const [openPrice] = useState(4500);
+  const [openPrice, setOpenPrice] = useState(4500);
   const [isWindowVisible, setIsWindowVisible] = useState(!document.hidden);
+  const [captureDataUrl, setCaptureDataUrl] = useState<string | null>(null);
+  const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
+  const [isGeminiAnalyzing, setIsGeminiAnalyzing] = useState(false);
+  const [isLiveData, setIsLiveData] = useState(false);
   const [currencyPair, setCurrencyPair] = useState<string>(() => {
     return localStorage.getItem("ca_currency_pair") || "EUR/USD";
   });
@@ -109,13 +119,41 @@ export default function App() {
     }
   }, [settings]);
 
-  const initChart = useCallback((tf: Timeframe) => {
+  const initChart = useCallback(async (tf: Timeframe, pair: string) => {
     const minutes = timeframeToMinutes(tf);
-    const newCandles = generateHistoricalCandles(minutes, 120, 4500);
-    setCandles(newCandles);
     setSignal(null);
     signalFiredRef.current = false;
+
+    if (isCryptoPair(pair)) {
+      try {
+        const binanceCandles = await fetchBinanceCandles(pair, minutes, 120);
+        if (binanceCandles && binanceCandles.length > 0) {
+          setCandles(binanceCandles);
+          setIsLiveData(true);
+          // Set initial price from last candle
+          const last = binanceCandles[binanceCandles.length - 1];
+          const spread = last.close * 0.0001;
+          setBid(last.close - spread);
+          setAsk(last.close + spread);
+          setLastPrice(last.close);
+          setOpenPrice(binanceCandles[0].open);
+          return;
+        }
+      } catch {
+        // fallback to simulated
+      }
+    }
+
+    // Fallback: simulated data
+    setIsLiveData(false);
+    const newCandles = generateHistoricalCandles(minutes, 120, 4500);
+    setCandles(newCandles);
   }, []);
+
+  // Initialize chart when currency pair changes
+  useEffect(() => {
+    initChart(timeframe, currencyPair);
+  }, [currencyPair, timeframe, initChart]);
 
   const saveSignalMutate = saveSignalMutation.mutate;
 
@@ -145,53 +183,105 @@ export default function App() {
   useEffect(() => {
     if (tickRef.current) clearInterval(tickRef.current);
 
-    const intervalMs = getTickIntervalMs(timeframe);
     const minutes = timeframeToMinutes(timeframe);
     const intervalSeconds = minutes * 60;
+    const isCrypto = isCryptoPair(currencyPair);
 
-    tickRef.current = setInterval(() => {
-      setCandles((prev) => {
-        if (prev.length === 0) return prev;
-        const last = prev[prev.length - 1];
-        const now = Math.floor(Date.now() / 1000);
-        const candleStart = Math.floor(now / intervalSeconds) * intervalSeconds;
+    // For live crypto data: fetch from Binance every 3s
+    // For simulated: tick every 1-8s
+    const intervalMs = isCrypto ? 3000 : getTickIntervalMs(timeframe);
 
-        const volatility = minutes <= 1 ? 2 : minutes <= 5 ? 4 : 8;
-        const move = (Math.random() - 0.49) * volatility;
-        const newClose = Math.max(100, last.close + move);
-        const spread = newClose * 0.0001;
+    tickRef.current = setInterval(async () => {
+      if (isCrypto) {
+        // Fetch live ticker data
+        try {
+          const ticker = await fetchTickerInfo(currencyPair);
+          if (ticker) {
+            const now = Math.floor(Date.now() / 1000);
+            const candleStart =
+              Math.floor(now / intervalSeconds) * intervalSeconds;
 
-        setBid(newClose - spread);
-        setAsk(newClose + spread);
-        setLastPrice(newClose);
+            setBid(ticker.bid);
+            setAsk(ticker.ask);
+            setLastPrice(ticker.last);
 
-        if (candleStart > last.time) {
-          const newCandle: Candle = {
-            time: candleStart,
-            open: last.close,
-            high: Math.max(last.close, newClose),
-            low: Math.min(last.close, newClose),
-            close: newClose,
-            volume: 500 + Math.random() * 1000,
-          };
-          return [...prev.slice(-119), newCandle];
+            setCandles((prev) => {
+              if (prev.length === 0) return prev;
+              const last = prev[prev.length - 1];
+              const newClose = ticker.last;
+
+              if (candleStart > last.time) {
+                // New candle started
+                const newCandle: Candle = {
+                  time: candleStart,
+                  open: last.close,
+                  high: Math.max(last.close, newClose),
+                  low: Math.min(last.close, newClose),
+                  close: newClose,
+                  volume: 500 + Math.random() * 1000,
+                };
+                return [...prev.slice(-119), newCandle];
+              }
+
+              const updated: Candle = {
+                ...last,
+                high: Math.max(last.high, newClose),
+                low: Math.min(last.low, newClose),
+                close: newClose,
+                volume: last.volume + 10,
+              };
+              return [...prev.slice(0, -1), updated];
+            });
+          }
+        } catch {
+          // Silently ignore fetch errors
         }
+      } else {
+        // Simulated price movement
+        setCandles((prev) => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          const now = Math.floor(Date.now() / 1000);
+          const candleStart =
+            Math.floor(now / intervalSeconds) * intervalSeconds;
 
-        const updated: Candle = {
-          ...last,
-          high: Math.max(last.high, newClose),
-          low: Math.min(last.low, newClose),
-          close: newClose,
-          volume: last.volume + Math.random() * 50,
-        };
-        return [...prev.slice(0, -1), updated];
-      });
+          const volatility = minutes <= 1 ? 2 : minutes <= 5 ? 4 : 8;
+          const move = (Math.random() - 0.49) * volatility;
+          const newClose = Math.max(100, last.close + move);
+          const spread = newClose * 0.0001;
+
+          setBid(newClose - spread);
+          setAsk(newClose + spread);
+          setLastPrice(newClose);
+
+          if (candleStart > last.time) {
+            const newCandle: Candle = {
+              time: candleStart,
+              open: last.close,
+              high: Math.max(last.close, newClose),
+              low: Math.min(last.close, newClose),
+              close: newClose,
+              volume: 500 + Math.random() * 1000,
+            };
+            return [...prev.slice(-119), newCandle];
+          }
+
+          const updated: Candle = {
+            ...last,
+            high: Math.max(last.high, newClose),
+            low: Math.min(last.low, newClose),
+            close: newClose,
+            volume: last.volume + Math.random() * 50,
+          };
+          return [...prev.slice(0, -1), updated];
+        });
+      }
     }, intervalMs);
 
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
     };
-  }, [timeframe]);
+  }, [timeframe, currencyPair]);
 
   const triggerSignalAnalysis = useCallback(() => {
     setIsAnalyzing(true);
@@ -255,6 +345,160 @@ export default function App() {
     };
   }, [timeframe]);
 
+  const analyzeWithGemini = useCallback(async (dataUrl: string) => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+    if (!apiKey || apiKey === "DEMO_KEY_NOT_SET" || apiKey === "") {
+      toast.error(
+        "Configure a chave VITE_GEMINI_API_KEY para ativar a análise Gemini",
+        {
+          style: {
+            background: "rgba(8,8,16,0.95)",
+            border: "1px solid rgba(0,229,255,0.3)",
+            color: "#00e5ff",
+            backdropFilter: "blur(12px)",
+          },
+        },
+      );
+      setGeminiAnalysis(
+        "Chave de API Gemini não configurada.\nDefina VITE_GEMINI_API_KEY para ativar a análise por visão computacional.",
+      );
+      return;
+    }
+
+    setIsGeminiAnalyzing(true);
+    setGeminiAnalysis(null);
+
+    try {
+      // Strip the data URL prefix to get pure base64
+      const base64 = dataUrl.replace(/^data:image\/[a-z]+;base64,/, "");
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: "image/png",
+                      data: base64,
+                    },
+                  },
+                  {
+                    text: "Você é um analista financeiro especializado em trading de opções binárias. Analise este gráfico de candlestick e forneça: 1) Direção da tendência (ALTA ou BAIXA), 2) Padrões de velas identificados, 3) Níveis de suporte e resistência visíveis nas ordenadas (eixo Y), 4) Sua recomendação final: BUY (COMPRA) ou SELL (VENDA) com percentual de confiança de 0 a 100%. Responda em português de forma concisa.",
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              maxOutputTokens: 400,
+              temperature: 0.2,
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = (await response.json()) as {
+        candidates?: Array<{
+          content?: { parts?: Array<{ text?: string }> };
+        }>;
+      };
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+      if (!text) {
+        throw new Error("Resposta vazia da API Gemini");
+      }
+
+      setGeminiAnalysis(text);
+
+      // Parse signal direction from Gemini response
+      const upper = text.toUpperCase();
+      const hasBuy =
+        upper.includes("BUY") ||
+        upper.includes("COMPRA") ||
+        upper.includes("ALTA");
+      const hasSell =
+        upper.includes("SELL") ||
+        upper.includes("VENDA") ||
+        upper.includes("BAIXA");
+
+      // Extract confidence percentage if present (e.g. "75%", "80%")
+      const confMatch = text.match(/(\d{1,3})\s*%/);
+      const confidence = confMatch
+        ? Math.min(100, Math.max(0, Number.parseInt(confMatch[1], 10)))
+        : 75;
+
+      // Compute fresh indicators from latest candles state
+      setCandles((prevCandles) => {
+        const cls = prevCandles.map((c) => c.close);
+        const e9 = calcEMA(cls, 9);
+        const e21 = calcEMA(cls, 21);
+        const rsi = calcRSI(cls, 14);
+        const idx = cls.length - 1;
+        const ema9Val = e9[idx] || 0;
+        const ema21Val = e21[idx] || 0;
+        const rsiVal = rsi[idx] || 50;
+        const pat = detectPattern(prevCandles);
+
+        const emaStatusVal =
+          ema9Val > ema21Val ? "EMA Bullish Cross" : "EMA Bearish Cross";
+
+        if (hasBuy && !hasSell) {
+          setSignal({
+            direction: "buy",
+            confidence,
+            ema9: ema9Val,
+            ema21: ema21Val,
+            rsi: rsiVal,
+            pattern: pat,
+            emaStatus: emaStatusVal,
+          });
+        } else if (hasSell && !hasBuy) {
+          setSignal({
+            direction: "sell",
+            confidence,
+            ema9: ema9Val,
+            ema21: ema21Val,
+            rsi: rsiVal,
+            pattern: pat,
+            emaStatus: emaStatusVal,
+          });
+        }
+
+        return prevCandles;
+      });
+
+      toast.success("Análise Gemini concluída!", {
+        style: {
+          background: "rgba(8,8,16,0.95)",
+          border: "1px solid rgba(0,229,255,0.3)",
+          color: "#00e5ff",
+          backdropFilter: "blur(12px)",
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error(`Erro Gemini: ${msg}`, {
+        style: {
+          background: "rgba(8,8,16,0.95)",
+          border: "1px solid rgba(255,23,68,0.3)",
+          color: "#ff1744",
+          backdropFilter: "blur(12px)",
+        },
+      });
+      setGeminiAnalysis("Erro na análise Gemini. Verifique a chave de API.");
+    } finally {
+      setIsGeminiAnalyzing(false);
+    }
+  }, []);
+
   function handleOpenPopup() {
     const url = window.location.href;
     const w = 380;
@@ -274,11 +518,32 @@ export default function App() {
     setPairInput(trimmed);
     localStorage.setItem("ca_currency_pair", trimmed);
     setEditingPair(false);
+
+    const isCrypto = isCryptoPair(trimmed);
+    if (isCrypto) {
+      toast.info(`Conectando à Binance para ${trimmed}...`, {
+        style: {
+          background: "rgba(8,8,16,0.95)",
+          border: "1px solid rgba(0,200,83,0.3)",
+          color: "#00c853",
+          backdropFilter: "blur(12px)",
+        },
+      });
+    } else {
+      toast.info(`Par ${trimmed} em modo simulado`, {
+        style: {
+          background: "rgba(8,8,16,0.95)",
+          border: "1px solid rgba(255,214,0,0.3)",
+          color: "#ffd600",
+          backdropFilter: "blur(12px)",
+        },
+      });
+    }
   }
 
   function handleTimeframeChange(tf: Timeframe) {
     setTimeframe(tf);
-    initChart(tf);
+    initChart(tf, currencyPair);
     updateSettingsMutation.mutate({
       selectedTimeframe: tf,
       signalSensitivity: sensitivity,
@@ -317,8 +582,8 @@ export default function App() {
     currentEma9 > currentEma21 ? "EMA Bullish Cross" : "EMA Bearish Cross";
 
   const isSignalWindow = countdown <= 20 && countdown > 0;
-  const change = lastPrice - openPrice;
-  const changePercent = (change / openPrice) * 100;
+  const change = openPrice > 0 ? lastPrice - openPrice : 0;
+  const changePercent = openPrice > 0 ? (change / openPrice) * 100 : 0;
 
   return (
     <div
@@ -504,6 +769,32 @@ export default function App() {
               <div
                 className="flex items-center gap-1 px-2 py-0.5 rounded"
                 style={{
+                  background: isLiveData
+                    ? "rgba(0,200,83,0.1)"
+                    : "rgba(255,214,0,0.1)",
+                  border: isLiveData
+                    ? "1px solid rgba(0,200,83,0.2)"
+                    : "1px solid rgba(255,214,0,0.2)",
+                }}
+                title={
+                  isLiveData ? "Dados reais da Binance" : "Dados simulados"
+                }
+              >
+                {isLiveData ? (
+                  <Wifi size={9} style={{ color: "#00c853" }} />
+                ) : (
+                  <WifiOff size={9} style={{ color: "#ffd600" }} />
+                )}
+                <span
+                  className="text-[9px] font-mono font-semibold"
+                  style={{ color: isLiveData ? "#00c853" : "#ffd600" }}
+                >
+                  {isLiveData ? "BINANCE" : "SIM"}
+                </span>
+              </div>
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded"
+                style={{
                   background: "rgba(0,200,83,0.1)",
                   border: "1px solid rgba(0,200,83,0.2)",
                 }}
@@ -513,6 +804,14 @@ export default function App() {
                   LIVE
                 </span>
               </div>
+
+              <ScreenCaptureButton
+                onCapture={(url) => {
+                  setCaptureDataUrl(url);
+                  setGeminiAnalysis(null);
+                  analyzeWithGemini(url);
+                }}
+              />
 
               {!isPopup && (
                 <button
@@ -691,6 +990,14 @@ export default function App() {
               pattern={currentPattern}
               emaStatus={emaStatus}
               isWindowVisible={isWindowVisible}
+              captureDataUrl={captureDataUrl}
+              onClearCapture={() => {
+                setCaptureDataUrl(null);
+                setGeminiAnalysis(null);
+                setIsGeminiAnalyzing(false);
+              }}
+              geminiAnalysis={geminiAnalysis}
+              isGeminiAnalyzing={isGeminiAnalyzing}
             />
 
             <SignalHistory
