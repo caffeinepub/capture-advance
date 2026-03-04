@@ -87,15 +87,14 @@
     padding: 0;
     width: 100%;
     height: 100%;
-    background: transparent !important;
-    background-color: transparent !important;
+    background: #080810 !important;
+    background-color: #080810 !important;
   }
 
   body {
     font-family: "Sora", sans-serif;
-    /* Transparent background to simulate overlay on broker screen */
-    background: transparent !important;
-    background-color: transparent !important;
+    background: #080810 !important;
+    background-color: #080810 !important;
     overflow: hidden;
   }
 }

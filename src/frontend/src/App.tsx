@@ -292,10 +292,9 @@ export default function App() {
   const changePercent = (change / openPrice) * 100;
 
   return (
-    /* Full transparent root — simulates overlay on broker screen */
     <div
       className="w-full h-screen flex items-center justify-start overflow-hidden"
-      style={{ background: "transparent" }}
+      style={{ background: "#080810" }}
     >
       <Toaster position="top-right" />
 
