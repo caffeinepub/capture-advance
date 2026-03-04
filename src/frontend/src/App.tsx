@@ -1,3 +1,4 @@
+import { Check, ExternalLink, Pencil } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -70,6 +71,13 @@ export default function App() {
   const [lastPrice, setLastPrice] = useState(4501.2);
   const [openPrice] = useState(4500);
   const [isWindowVisible, setIsWindowVisible] = useState(!document.hidden);
+  const [currencyPair, setCurrencyPair] = useState<string>(() => {
+    return localStorage.getItem("ca_currency_pair") || "EUR/USD";
+  });
+  const [editingPair, setEditingPair] = useState(false);
+  const [pairInput, setPairInput] = useState(currencyPair);
+  const isPopup = window.opener !== null || window.name === "ca_popup";
+  const pairInputRef = useRef<HTMLInputElement>(null);
   const signalFiredRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -247,6 +255,27 @@ export default function App() {
     };
   }, [timeframe]);
 
+  function handleOpenPopup() {
+    const url = window.location.href;
+    const w = 380;
+    const h = 700;
+    const left = window.screen.width - w - 20;
+    const top = Math.floor((window.screen.height - h) / 2);
+    window.open(
+      url,
+      "ca_popup",
+      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`,
+    );
+  }
+
+  function handleSavePair() {
+    const trimmed = pairInput.trim().toUpperCase() || "EUR/USD";
+    setCurrencyPair(trimmed);
+    setPairInput(trimmed);
+    localStorage.setItem("ca_currency_pair", trimmed);
+    setEditingPair(false);
+  }
+
   function handleTimeframeChange(tf: Timeframe) {
     setTimeframe(tf);
     initChart(tf);
@@ -293,7 +322,7 @@ export default function App() {
 
   return (
     <div
-      className="w-full h-screen flex items-center justify-start overflow-hidden"
+      className={`w-full h-screen flex overflow-hidden ${isPopup ? "items-stretch justify-center" : "items-center justify-start"}`}
       style={{ background: "#080810" }}
     >
       <Toaster position="top-right" />
@@ -316,9 +345,10 @@ export default function App() {
         initial={{ opacity: 0, x: -40 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="relative flex flex-col h-screen overflow-hidden"
+        className="relative flex flex-col overflow-hidden"
         style={{
-          width: "360px",
+          width: isPopup ? "100%" : "360px",
+          height: "100vh",
           zIndex: 10,
         }}
       >
@@ -484,6 +514,23 @@ export default function App() {
                 </span>
               </div>
 
+              {!isPopup && (
+                <button
+                  type="button"
+                  onClick={handleOpenPopup}
+                  title="Abrir como janela flutuante"
+                  className="flex items-center justify-center w-6 h-6 rounded transition-opacity hover:opacity-80"
+                  style={{
+                    background: "rgba(0,200,83,0.1)",
+                    border: "1px solid rgba(0,200,83,0.2)",
+                    color: "#00c853",
+                  }}
+                  data-ocid="header.open_modal_button"
+                >
+                  <ExternalLink size={11} />
+                </button>
+              )}
+
               <SettingsPanel
                 sensitivity={sensitivity}
                 timeframe={timeframe}
@@ -493,38 +540,103 @@ export default function App() {
             </div>
           </header>
 
-          {/* Timeframe selector */}
+          {/* Timeframe selector + currency pair */}
           <div
-            className="flex items-center gap-1 px-3 py-1.5 flex-shrink-0"
+            className="flex flex-col flex-shrink-0"
             style={{
               background: "rgba(0,0,0,0.25)",
               borderBottom: "1px solid rgba(255,255,255,0.05)",
             }}
           >
-            {TIMEFRAME_LABELS.map(({ key, label }, i) => (
-              <button
-                type="button"
-                key={key}
-                onClick={() => handleTimeframeChange(key)}
-                className="flex-1 py-1 rounded text-[10px] font-mono font-bold transition-all"
-                style={{
-                  color: timeframe === key ? "#000" : "rgba(255,255,255,0.3)",
-                  background:
-                    timeframe === key
-                      ? "linear-gradient(135deg, #00c853, #00e676)"
-                      : "rgba(255,255,255,0.04)",
-                  boxShadow:
-                    timeframe === key ? "0 0 10px rgba(0,200,83,0.5)" : "none",
-                  border:
-                    timeframe === key
-                      ? "none"
-                      : "1px solid rgba(255,255,255,0.06)",
-                }}
-                data-ocid={`timeframe.tab.${i + 1}`}
-              >
-                {label}
-              </button>
-            ))}
+            <div className="flex items-center gap-1 px-3 pt-1.5 pb-1">
+              {TIMEFRAME_LABELS.map(({ key, label }, i) => (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => handleTimeframeChange(key)}
+                  className="flex-1 py-1 rounded text-[10px] font-mono font-bold transition-all"
+                  style={{
+                    color: timeframe === key ? "#000" : "rgba(255,255,255,0.3)",
+                    background:
+                      timeframe === key
+                        ? "linear-gradient(135deg, #00c853, #00e676)"
+                        : "rgba(255,255,255,0.04)",
+                    boxShadow:
+                      timeframe === key
+                        ? "0 0 10px rgba(0,200,83,0.5)"
+                        : "none",
+                    border:
+                      timeframe === key
+                        ? "none"
+                        : "1px solid rgba(255,255,255,0.06)",
+                  }}
+                  data-ocid={`timeframe.tab.${i + 1}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Currency pair display / edit */}
+            <div className="flex items-center justify-center pb-1.5 gap-1.5">
+              {editingPair ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    ref={pairInputRef}
+                    type="text"
+                    value={pairInput}
+                    onChange={(e) => setPairInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSavePair();
+                      if (e.key === "Escape") {
+                        setPairInput(currencyPair);
+                        setEditingPair(false);
+                      }
+                    }}
+                    maxLength={12}
+                    className="bg-transparent border-b text-center text-[11px] font-black font-mono tracking-widest outline-none w-24"
+                    style={{
+                      color: "#00c853",
+                      borderColor: "rgba(0,200,83,0.5)",
+                      caretColor: "#00c853",
+                    }}
+                    data-ocid="currency_pair.input"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSavePair}
+                    className="flex items-center justify-center w-4 h-4 rounded"
+                    style={{ color: "#00c853" }}
+                    data-ocid="currency_pair.save_button"
+                  >
+                    <Check size={11} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPairInput(currencyPair);
+                    setEditingPair(true);
+                    setTimeout(() => pairInputRef.current?.select(), 50);
+                  }}
+                  className="flex items-center gap-1.5 group"
+                  data-ocid="currency_pair.edit_button"
+                >
+                  <span
+                    className="text-[11px] font-black font-mono tracking-widest"
+                    style={{ color: "rgba(0,200,83,0.7)" }}
+                  >
+                    {currencyPair}
+                  </span>
+                  <Pencil
+                    size={9}
+                    className="opacity-0 group-hover:opacity-60 transition-opacity"
+                    style={{ color: "#00c853" }}
+                  />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Price ticker strip */}
