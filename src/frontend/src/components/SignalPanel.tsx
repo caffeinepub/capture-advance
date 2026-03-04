@@ -19,6 +19,7 @@ interface SignalPanelProps {
   ema21: number;
   pattern: CandlePattern;
   emaStatus: string;
+  isWindowVisible?: boolean;
   onBuyClick?: () => void;
   onSellClick?: () => void;
 }
@@ -223,6 +224,7 @@ export function SignalPanel({
   ema21,
   pattern,
   emaStatus,
+  isWindowVisible = true,
   onBuyClick,
   onSellClick,
 }: SignalPanelProps) {
@@ -394,37 +396,89 @@ export function SignalPanel({
       <div
         className="rounded-xl p-4"
         style={{
-          background: "rgba(0,200,83,0.04)",
-          border: "1px solid rgba(0,200,83,0.18)",
+          background: isWindowVisible
+            ? "rgba(0,200,83,0.04)"
+            : "rgba(255,23,68,0.06)",
+          border: isWindowVisible
+            ? "1px solid rgba(0,200,83,0.18)"
+            : "1px solid rgba(255,23,68,0.35)",
           backdropFilter: "blur(8px)",
+          transition: "background 0.4s, border-color 0.4s",
         }}
+        data-ocid="signal.panel"
       >
         <div className="flex items-center gap-2 mb-3">
-          <Brain size={13} className="text-[#00c853]" />
-          <span className="text-[11px] font-mono text-[#00c853] tracking-widest font-bold">
+          <Brain
+            size={13}
+            style={{ color: isWindowVisible ? "#00c853" : "#ff1744" }}
+          />
+          <span
+            className="text-[11px] font-mono tracking-widest font-bold"
+            style={{ color: isWindowVisible ? "#00c853" : "#ff1744" }}
+          >
             ANÁLISE IA
           </span>
-          {isAnalyzing && (
+          {isAnalyzing && isWindowVisible && (
             <motion.div
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 0.6, repeat: Number.POSITIVE_INFINITY }}
               className="ml-auto w-1.5 h-1.5 rounded-full bg-yellow-400"
             />
           )}
+          {!isWindowVisible && (
+            <motion.div
+              animate={{ opacity: [1, 0.4, 1] }}
+              transition={{ duration: 0.8, repeat: Number.POSITIVE_INFINITY }}
+              className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500"
+            />
+          )}
         </div>
         <AnimatePresence mode="wait">
-          <motion.div
-            key={isAnalyzing ? "loading" : signal ? "signal" : "idle"}
-          >
-            <AIAnalysisText
-              signal={signal}
-              isAnalyzing={isAnalyzing}
-              rsiValue={rsiValue}
-              ema9={ema9}
-              ema21={ema21}
-              pattern={pattern}
-            />
-          </motion.div>
+          {!isWindowVisible ? (
+            <motion.div
+              key="not-detected"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.3 }}
+              className="flex flex-col items-center justify-center gap-3 py-4"
+              data-ocid="signal.error_state"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY }}
+                className="text-2xl font-black font-mono tracking-widest"
+                style={{
+                  color: "#ff1744",
+                  textShadow: "0 0 20px rgba(255,23,68,0.6)",
+                }}
+              >
+                ⚠ NÃO DETECTADO
+              </motion.div>
+              <span className="text-[11px] font-mono text-white/30 tracking-widest text-center">
+                Navegador em plano de fundo
+              </span>
+              <span className="text-[10px] font-mono text-white/20 text-center">
+                Retorne para continuar análise
+              </span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={isAnalyzing ? "loading" : signal ? "signal" : "idle"}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <AIAnalysisText
+                signal={signal}
+                isAnalyzing={isAnalyzing}
+                rsiValue={rsiValue}
+                ema9={ema9}
+                ema21={ema21}
+                pattern={pattern}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 

@@ -69,11 +69,23 @@ export default function App() {
   const [ask, setAsk] = useState(4503.5);
   const [lastPrice, setLastPrice] = useState(4501.2);
   const [openPrice] = useState(4500);
+  const [isWindowVisible, setIsWindowVisible] = useState(!document.hidden);
   const signalFiredRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevCountdownRef = useRef(0);
   const triggerRef = useRef<(() => void) | null>(null);
+
+  // Detect when window is hidden (minimized, other tab, etc.)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsWindowVisible(!document.hidden);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const { data: savedSignals = [], isLoading: signalsLoading } =
     useGetLastSignals(5);
@@ -282,7 +294,7 @@ export default function App() {
   return (
     /* Full transparent root — simulates overlay on broker screen */
     <div
-      className="w-full h-screen flex items-center justify-end overflow-hidden"
+      className="w-full h-screen flex items-center justify-start overflow-hidden"
       style={{ background: "transparent" }}
     >
       <Toaster position="top-right" />
@@ -302,7 +314,7 @@ export default function App() {
 
       {/* === FLOATING OVERLAY PANEL === */}
       <motion.div
-        initial={{ opacity: 0, x: 40 }}
+        initial={{ opacity: 0, x: -40 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="relative flex flex-col h-screen overflow-hidden"
@@ -567,6 +579,7 @@ export default function App() {
               ema21={currentEma21}
               pattern={currentPattern}
               emaStatus={emaStatus}
+              isWindowVisible={isWindowVisible}
             />
 
             <SignalHistory
@@ -611,8 +624,8 @@ export default function App() {
             style={{
               background:
                 signal.direction === "buy"
-                  ? "radial-gradient(circle at 85% 50%, rgba(0,200,83,0.12) 0%, transparent 60%)"
-                  : "radial-gradient(circle at 85% 50%, rgba(255,23,68,0.12) 0%, transparent 60%)",
+                  ? "radial-gradient(circle at 15% 50%, rgba(0,200,83,0.12) 0%, transparent 60%)"
+                  : "radial-gradient(circle at 15% 50%, rgba(255,23,68,0.12) 0%, transparent 60%)",
               zIndex: 50,
             }}
           />
