@@ -1,0 +1,258 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/assets/fonts/JetBrainsMono[wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/assets/fonts/GeistMono[wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Sora";
+  src: url("/assets/fonts/Sora[wght].woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.375rem;
+
+    --background: 0.1 0 0;
+    --foreground: 0.92 0.01 260;
+    --card: 0.13 0.005 260;
+    --card-foreground: 0.92 0.01 260;
+    --popover: 0.15 0.008 260;
+    --popover-foreground: 0.92 0.01 260;
+    --primary: 0.55 0.18 145;
+    --primary-foreground: 0.1 0 0;
+    --secondary: 0.18 0.01 260;
+    --secondary-foreground: 0.75 0.01 260;
+    --muted: 0.16 0.008 260;
+    --muted-foreground: 0.5 0.015 260;
+    --accent: 0.55 0.18 145;
+    --accent-foreground: 0.1 0 0;
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+    --border: 0.22 0.01 260;
+    --input: 0.2 0.01 260;
+    --ring: 0.55 0.18 145;
+
+    --chart-1: 0.55 0.18 145;
+    --chart-2: 0.55 0.22 25;
+    --chart-3: 0.65 0.15 260;
+    --chart-4: 0.75 0.18 85;
+    --chart-5: 0.6 0.15 300;
+
+    --sidebar: 0.12 0.005 260;
+    --sidebar-foreground: 0.92 0.01 260;
+    --sidebar-primary: 0.55 0.18 145;
+    --sidebar-primary-foreground: 0.1 0 0;
+    --sidebar-accent: 0.18 0.01 260;
+    --sidebar-accent-foreground: 0.75 0.01 260;
+    --sidebar-border: 0.22 0.01 260;
+    --sidebar-ring: 0.55 0.18 145;
+
+    --buy-color: #00c853;
+    --sell-color: #ff1744;
+    --buy-glow: rgba(0, 200, 83, 0.5);
+    --sell-glow: rgba(255, 23, 68, 0.5);
+    --terminal-green: #00c853;
+    --terminal-red: #ff1744;
+    --terminal-yellow: #ffd600;
+    --terminal-cyan: #00e5ff;
+    --panel-bg: rgba(10, 10, 18, 0.55);
+    --panel-border: rgba(0, 200, 83, 0.18);
+    --grid-line: rgba(255, 255, 255, 0.04);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  body {
+    font-family: "Sora", sans-serif;
+    /* Transparent background to simulate overlay on broker screen */
+    background: transparent !important;
+    background-color: transparent !important;
+    overflow: hidden;
+  }
+}
+
+/* BUY glow animation */
+@keyframes buyGlow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px 5px rgba(0, 200, 83, 0.4),
+      0 0 60px 10px rgba(0, 200, 83, 0.2),
+      inset 0 0 20px rgba(0, 200, 83, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 40px 15px rgba(0, 200, 83, 0.8),
+      0 0 100px 30px rgba(0, 200, 83, 0.4),
+      inset 0 0 30px rgba(0, 200, 83, 0.25);
+  }
+}
+
+/* SELL glow animation */
+@keyframes sellGlow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px 5px rgba(255, 23, 68, 0.4),
+      0 0 60px 10px rgba(255, 23, 68, 0.2),
+      inset 0 0 20px rgba(255, 23, 68, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 40px 15px rgba(255, 23, 68, 0.8),
+      0 0 100px 30px rgba(255, 23, 68, 0.4),
+      inset 0 0 30px rgba(255, 23, 68, 0.25);
+  }
+}
+
+/* Corner neon pulse */
+@keyframes cornerPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; box-shadow: 0 0 8px rgba(0, 200, 83, 0.8); }
+}
+
+/* Pulse ring for signal */
+@keyframes signalPulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes scanLine {
+  0% { transform: translateY(-100%); opacity: 0.6; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes countdownPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes borderSpin {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes glassFlicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.97; }
+  94% { opacity: 1; }
+}
+
+.glow-buy {
+  animation: buyGlow 1.2s ease-in-out infinite;
+  background: linear-gradient(135deg, #00c853, #00e676);
+  color: #000 !important;
+}
+
+.glow-sell {
+  animation: sellGlow 1.2s ease-in-out infinite;
+  background: linear-gradient(135deg, #ff1744, #ff5252);
+  color: #fff !important;
+}
+
+.signal-pulse-ring {
+  animation: signalPulse 1s ease-out infinite;
+}
+
+.blink {
+  animation: blink 1s step-end infinite;
+}
+
+.countdown-urgent {
+  animation: countdownPulse 0.5s ease-in-out infinite;
+  color: var(--terminal-yellow) !important;
+}
+
+/* Glass overlay panel */
+.glass-overlay {
+  background: rgba(8, 8, 16, 0.62);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+/* Neon corner brackets */
+.corner-bracket::before,
+.corner-bracket::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: #00c853;
+  border-style: solid;
+  opacity: 0.8;
+  animation: cornerPulse 2s ease-in-out infinite;
+}
+.corner-bracket::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+  border-radius: 2px 0 0 0;
+}
+.corner-bracket::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 2px 0;
+}
+
+/* Scan line sweep */
+.scan-sweep::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0,200,83,0.4), transparent);
+  animation: scanLine 4s linear infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Chart scrollbar */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,200,83,0.2);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,200,83,0.4);
+}
