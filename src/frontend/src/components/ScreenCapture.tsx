@@ -180,7 +180,7 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
             playsInline
             className="w-full"
             style={{
-              height: 120,
+              height: 160,
               objectFit: "cover",
               objectPosition: "top",
               display: "block",

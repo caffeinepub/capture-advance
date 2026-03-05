@@ -102,6 +102,8 @@ export default function App() {
   const prevCountdownRef = useRef(0);
   const triggerRef = useRef<(() => void) | null>(null);
   const videoBackgroundRef = useRef<HTMLVideoElement>(null);
+  const captureFrameRef = useRef<(() => string | null) | null>(null);
+  const geminiAnalyzeRef = useRef<((dataUrl: string) => void) | null>(null);
 
   // Detect when window is hidden (minimized, other tab, etc.)
   useEffect(() => {
@@ -346,7 +348,13 @@ export default function App() {
         !signalFiredRef.current
       ) {
         signalFiredRef.current = true;
+        // Trigger local analysis
         triggerRef.current?.();
+        // Also capture live stream frame and send to Gemini
+        const frame = captureFrameRef.current?.();
+        if (frame) {
+          geminiAnalyzeRef.current?.(frame);
+        }
       }
 
       if (secs > 20) {
@@ -363,6 +371,20 @@ export default function App() {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, [timeframe]);
+
+  /** Capture a still frame from the live background video element */
+  const captureFrameFromLiveStream = useCallback((): string | null => {
+    const video = videoBackgroundRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0)
+      return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0);
+    return canvas.toDataURL("image/png");
+  }, []);
 
   const analyzeWithGemini = useCallback(async (dataUrl: string) => {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
@@ -394,13 +416,13 @@ export default function App() {
                     },
                   },
                   {
-                    text: "Você é um analista financeiro especializado em trading de opções binárias. Analise este gráfico de candlestick e forneça: 1) Direção da tendência (ALTA ou BAIXA), 2) Padrões de velas identificados, 3) Níveis de suporte e resistência visíveis nas ordenadas (eixo Y), 4) Sua recomendação final: BUY (COMPRA) ou SELL (VENDA) com percentual de confiança de 0 a 100%. Responda em português de forma concisa.",
+                    text: "Você é um analista financeiro especializado em trading de opções binárias. Analise este gráfico de candlestick e forneça: 1) Direção da tendência (ALTA ou BAIXA), 2) Padrões de velas identificados, 3) Níveis de suporte e resistência visíveis nas ordenadas (eixo Y), 4) Sua recomendação final: BUY (COMPRA) ou SELL (VENDA) com percentual de confiança de 0 a 100%. 5) Qual é o par de moedas visível neste gráfico? Responda no formato PAR: XXX/YYY na última linha se identificar. Responda em português de forma concisa.",
                   },
                 ],
               },
             ],
             generationConfig: {
-              maxOutputTokens: 400,
+              maxOutputTokens: 450,
               temperature: 0.2,
             },
           }),
@@ -423,6 +445,23 @@ export default function App() {
       }
 
       setGeminiAnalysis(text);
+
+      // Parse currency pair from Gemini response (e.g. "PAR: EUR/USD")
+      const parMatch = text.match(/PAR:\s*([A-Z]{2,6}\/[A-Z]{2,6})/i);
+      if (parMatch) {
+        const detectedPair = parMatch[1].toUpperCase();
+        setCurrencyPair(detectedPair);
+        setPairInput(detectedPair);
+        localStorage.setItem("ca_currency_pair", detectedPair);
+        toast.success(`Par detectado: ${detectedPair}`, {
+          style: {
+            background: "rgba(8,8,16,0.95)",
+            border: "1px solid rgba(0,229,255,0.3)",
+            color: "#00e5ff",
+            backdropFilter: "blur(12px)",
+          },
+        });
+      }
 
       // Parse signal direction from Gemini response
       const upper = text.toUpperCase();
@@ -504,6 +543,15 @@ export default function App() {
       setIsGeminiAnalyzing(false);
     }
   }, []);
+
+  // Keep refs up-to-date so the countdown effect can call them without deps
+  useEffect(() => {
+    captureFrameRef.current = captureFrameFromLiveStream;
+  }, [captureFrameFromLiveStream]);
+
+  useEffect(() => {
+    geminiAnalyzeRef.current = analyzeWithGemini;
+  }, [analyzeWithGemini]);
 
   function handleOpenPopup() {
     const url = window.location.href;
@@ -838,6 +886,25 @@ export default function App() {
                     setCaptureDataUrl(null);
                     setGeminiAnalysis(null);
                     setIsGeminiAnalyzing(false);
+                  } else {
+                    // Try to auto-detect currency pair from track label (tab title)
+                    const trackLabel = stream.getTracks()[0]?.label ?? "";
+                    const pairRegex = /([A-Z]{2,6}[\/\-][A-Z]{2,6})/i;
+                    const match = trackLabel.match(pairRegex);
+                    if (match) {
+                      const detected = match[1].replace("-", "/").toUpperCase();
+                      setCurrencyPair(detected);
+                      setPairInput(detected);
+                      localStorage.setItem("ca_currency_pair", detected);
+                      toast.success(`Par detectado: ${detected}`, {
+                        style: {
+                          background: "rgba(8,8,16,0.95)",
+                          border: "1px solid rgba(0,229,255,0.3)",
+                          color: "#00e5ff",
+                          backdropFilter: "blur(12px)",
+                        },
+                      });
+                    }
                   }
                 }}
               />
@@ -1031,6 +1098,7 @@ export default function App() {
               }}
               geminiAnalysis={geminiAnalysis}
               isGeminiAnalyzing={isGeminiAnalyzing}
+              liveStream={liveStream}
             />
 
             <SignalHistory

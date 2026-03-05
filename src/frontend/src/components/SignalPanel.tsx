@@ -10,7 +10,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { CandlePattern, SignalResult } from "../utils/chartEngine";
-import { CaptureThumb } from "./ScreenCapture";
+import { CaptureThumb, LiveVideoPreview } from "./ScreenCapture";
 
 interface SignalPanelProps {
   signal: SignalResult | null;
@@ -28,6 +28,7 @@ interface SignalPanelProps {
   onClearCapture?: () => void;
   geminiAnalysis?: string | null;
   isGeminiAnalyzing?: boolean;
+  liveStream?: MediaStream | null;
 }
 
 function AnimatedDots() {
@@ -246,6 +247,7 @@ export function SignalPanel({
   onClearCapture,
   geminiAnalysis,
   isGeminiAnalyzing = false,
+  liveStream,
 }: SignalPanelProps) {
   const isGlowBuy = signal?.direction === "buy";
   const isGlowSell = signal?.direction === "sell";
@@ -411,8 +413,13 @@ export function SignalPanel({
         </motion.button>
       </div>
 
-      {/* Capture thumbnail (shown when still frame exists) */}
-      {captureDataUrl && onClearCapture && (
+      {/* Live video preview (shown when stream is active — replaces still thumb) */}
+      {liveStream && onClearCapture && (
+        <LiveVideoPreview stream={liveStream} onStop={onClearCapture} />
+      )}
+
+      {/* Capture thumbnail (shown only when no live stream but still frame exists) */}
+      {!liveStream && captureDataUrl && onClearCapture && (
         <CaptureThumb dataUrl={captureDataUrl} onClear={onClearCapture} />
       )}
 
