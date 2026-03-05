@@ -392,9 +392,12 @@ export default function App() {
   }, []);
 
   const analyzeWithGemini = useCallback(async (dataUrl: string) => {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-    if (!apiKey || apiKey === "DEMO_KEY_NOT_SET" || apiKey === "") {
-      // No API key configured — silently skip Gemini, use local analysis only
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+    const apiKey =
+      envKey && envKey !== "DEMO_KEY_NOT_SET" && envKey !== ""
+        ? envKey
+        : "AIzaSyAD9DFEz92g4cIPfFgQKgAn-WnVcrEhKmA";
+    if (!apiKey) {
       return;
     }
 
@@ -533,17 +536,17 @@ export default function App() {
           backdropFilter: "blur(12px)",
         },
       });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      toast.error(`Erro Gemini: ${msg}`, {
+    } catch {
+      toast.error("Gemini indisponível — usando análise local", {
         style: {
           background: "rgba(8,8,16,0.95)",
-          border: "1px solid rgba(255,23,68,0.3)",
-          color: "#ff1744",
+          border: "1px solid rgba(255,214,0,0.3)",
+          color: "#ffd600",
           backdropFilter: "blur(12px)",
         },
       });
-      setGeminiAnalysis("Erro na análise Gemini. Verifique a chave de API.");
+      // Don't show error text in the analysis panel — fall back to local analysis silently
+      setGeminiAnalysis(null);
     } finally {
       setIsGeminiAnalyzing(false);
     }
