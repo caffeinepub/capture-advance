@@ -31,6 +31,8 @@ interface SignalPanelProps {
   liveStream?: MediaStream | null;
   /** last marked outcome for WIN/LOSS border glow */
   lastOutcome?: "win" | "loss" | null;
+  /** whether a screen capture / live stream is currently active */
+  hasCapture?: boolean;
 }
 
 function AnimatedDots() {
@@ -122,116 +124,13 @@ function PatternBadge({ pattern }: { pattern: CandlePattern }) {
   );
 }
 
-function AIAnalysisText({
-  signal,
-  isAnalyzing,
-  rsiValue,
-  ema9,
-  ema21,
-  pattern,
-}: {
-  signal: SignalResult | null;
-  isAnalyzing: boolean;
-  rsiValue: number;
-  ema9: number;
-  ema21: number;
-  pattern: CandlePattern;
-}) {
-  const lines: string[] = [];
-
-  if (isAnalyzing) {
-    return (
-      <div className="space-y-2">
-        {([80, 60, 90, 50] as const).map((w) => (
-          <motion.div
-            key={w}
-            className="h-2.5 rounded bg-white/10"
-            style={{ width: `${w}%` }}
-            animate={{ opacity: [0.4, 0.8, 0.4] }}
-            transition={{
-              duration: 1.2,
-              repeat: Number.POSITIVE_INFINITY,
-              delay: w * 0.002,
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if (!signal) {
-    const rsiMsg =
-      rsiValue < 30
-        ? "RSI em zona de sobrevenda — pressão compradora possível."
-        : rsiValue > 70
-          ? "RSI em zona de sobrecompra — atenção para reversão de baixa."
-          : "RSI neutro, sem pressão direcional clara.";
-
-    const emaMsg =
-      ema9 > ema21
-        ? "EMA9 acima da EMA21 — tendência de curto prazo altista."
-        : "EMA9 abaixo da EMA21 — tendência de curto prazo baixista.";
-
-    const patternMsg =
-      pattern === "Bullish Engulfing"
-        ? "Padrão Engulfing de Alta detectado — possível reversão para cima."
-        : pattern === "Bearish Engulfing"
-          ? "Padrão Engulfing de Baixa detectado — possível reversão para baixo."
-          : pattern === "Hammer"
-            ? "Hammer identificado — sinal de suporte e rejeição de baixa."
-            : pattern === "Shooting Star"
-              ? "Shooting Star identificado — sinal de resistência e rejeição de alta."
-              : "Padrão neutro (Doji) — indecisão no mercado.";
-
-    lines.push(rsiMsg, emaMsg, patternMsg);
-    lines.push("Aguardando janela de sinal nos últimos 20 segundos da vela.");
-  } else {
-    const dir = signal.direction === "buy" ? "COMPRA" : "VENDA";
-    lines.push(
-      `IA concluiu análise: sinal de ${dir} com ${signal.confidence}% de confiança.`,
-    );
-
-    if (signal.confidence >= 80) {
-      lines.push(
-        "Alta confiança — todos os indicadores alinhados na mesma direção.",
-      );
-    } else if (signal.confidence >= 60) {
-      lines.push(
-        "Confiança moderada — maioria dos indicadores confirma o sinal.",
-      );
-    } else {
-      lines.push("Confiança baixa — sinais divergentes, operar com cautela.");
-    }
-
-    const rsiDesc =
-      signal.direction === "buy"
-        ? rsiValue < 50
-          ? `RSI em ${rsiValue.toFixed(0)} — espaço para alta antes de sobrecompra.`
-          : `RSI em ${rsiValue.toFixed(0)} — mercado aquecido, confirmar entrada.`
-        : rsiValue > 50
-          ? `RSI em ${rsiValue.toFixed(0)} — espaço para queda antes de sobrevenda.`
-          : `RSI em ${rsiValue.toFixed(0)} — mercado esfriando, confirmar saída.`;
-
-    lines.push(rsiDesc);
-    lines.push(`Padrão de vela: ${pattern}.`);
-  }
-
-  return (
-    <div className="space-y-2">
-      {lines.map((line) => (
-        <motion.p
-          key={line}
-          initial={{ opacity: 0, x: -8 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-[12px] font-mono leading-relaxed text-white/60"
-        >
-          <span className="text-[#00c853]/60 mr-1.5">›</span>
-          {line}
-        </motion.p>
-      ))}
-    </div>
-  );
+/** Extract the first 3 non-empty lines from Gemini analysis text */
+function extractCandlePatterns(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 3);
 }
 
 export function SignalPanel({
@@ -252,6 +151,7 @@ export function SignalPanel({
   isGeminiAnalyzing = false,
   liveStream,
   lastOutcome,
+  hasCapture = false,
 }: SignalPanelProps) {
   const isGlowBuy = signal?.direction === "buy";
   const isGlowSell = signal?.direction === "sell";
@@ -458,66 +358,56 @@ export function SignalPanel({
       <div
         className="rounded-xl p-4"
         style={{
-          background: isWindowVisible
-            ? "rgba(0,200,83,0.04)"
-            : "rgba(255,23,68,0.06)",
-          border: isWindowVisible
-            ? "1px solid rgba(0,200,83,0.18)"
-            : "1px solid rgba(255,23,68,0.35)",
+          background: !isWindowVisible
+            ? "rgba(255,23,68,0.06)"
+            : !hasCapture
+              ? "rgba(0,0,0,0.6)"
+              : "rgba(0,200,83,0.04)",
+          border: !isWindowVisible
+            ? "1px solid rgba(255,23,68,0.35)"
+            : !hasCapture
+              ? "1px solid rgba(255,255,255,0.06)"
+              : "1px solid rgba(0,200,83,0.18)",
           backdropFilter: "blur(8px)",
           transition: "background 0.4s, border-color 0.4s",
         }}
         data-ocid="signal.panel"
       >
-        <div className="flex items-center gap-2 mb-3">
-          <Brain
-            size={13}
-            style={{ color: isWindowVisible ? "#00c853" : "#ff1744" }}
-          />
-          <span
-            className="text-[11px] font-mono tracking-widest font-bold"
-            style={{ color: isWindowVisible ? "#00c853" : "#ff1744" }}
-          >
-            ANÁLISE IA
-          </span>
-          {/* Gemini badge — shown when Gemini analysis is active or done */}
-          {(isGeminiAnalyzing || !!geminiAnalysis) && isWindowVisible && (
+        {/* Header — only shown when capture is active */}
+        {hasCapture && isWindowVisible && (
+          <div className="flex items-center gap-2 mb-3">
+            <Brain size={13} style={{ color: "#00c853" }} />
             <span
-              className="text-[8px] font-mono tracking-widest px-1.5 py-0.5 rounded"
-              style={{
-                background: "rgba(0,229,255,0.1)",
-                border: "1px solid rgba(0,229,255,0.25)",
-                color: "#00e5ff",
-              }}
+              className="text-[11px] font-mono tracking-widest font-bold"
+              style={{ color: "#00c853" }}
             >
-              GEMINI
+              ANÁLISE IA
             </span>
-          )}
-          {isAnalyzing && isWindowVisible && !isGeminiAnalyzing && (
-            <motion.div
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 0.6, repeat: Number.POSITIVE_INFINITY }}
-              className="ml-auto w-1.5 h-1.5 rounded-full bg-yellow-400"
-            />
-          )}
-          {isGeminiAnalyzing && isWindowVisible && (
-            <motion.div
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 0.4, repeat: Number.POSITIVE_INFINITY }}
-              className="ml-auto w-1.5 h-1.5 rounded-full"
-              style={{ background: "#00e5ff" }}
-            />
-          )}
-          {!isWindowVisible && (
-            <motion.div
-              animate={{ opacity: [1, 0.4, 1] }}
-              transition={{ duration: 0.8, repeat: Number.POSITIVE_INFINITY }}
-              className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500"
-            />
-          )}
-        </div>
+            {(isGeminiAnalyzing || !!geminiAnalysis) && (
+              <span
+                className="text-[8px] font-mono tracking-widest px-1.5 py-0.5 rounded"
+                style={{
+                  background: "rgba(0,229,255,0.1)",
+                  border: "1px solid rgba(0,229,255,0.25)",
+                  color: "#00e5ff",
+                }}
+              >
+                GEMINI
+              </span>
+            )}
+            {isGeminiAnalyzing && (
+              <motion.div
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 0.4, repeat: Number.POSITIVE_INFINITY }}
+                className="ml-auto w-1.5 h-1.5 rounded-full"
+                style={{ background: "#00e5ff" }}
+              />
+            )}
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {!isWindowVisible ? (
+            /* Browser hidden / background */
             <motion.div
               key="not-detected"
               initial={{ opacity: 0, y: 4 }}
@@ -545,7 +435,40 @@ export function SignalPanel({
                 Retorne para continuar análise
               </span>
             </motion.div>
+          ) : !hasCapture ? (
+            /* No capture active — show start prompt */
+            <motion.div
+              key="no-capture"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.35 }}
+              className="flex flex-col items-center justify-center gap-4 py-6"
+              data-ocid="signal.empty_state"
+            >
+              <motion.div
+                animate={{ opacity: [0.4, 0.9, 0.4] }}
+                transition={{ duration: 2.5, repeat: Number.POSITIVE_INFINITY }}
+                style={{ color: "rgba(255,255,255,0.15)", fontSize: "2.5rem" }}
+              >
+                📷
+              </motion.div>
+              <div className="flex flex-col items-center gap-1.5">
+                <span
+                  className="text-[13px] font-black font-mono tracking-[0.2em]"
+                  style={{ color: "rgba(255,255,255,0.35)" }}
+                >
+                  CARREGAR CAPTURA
+                </span>
+                <span className="text-[10px] font-mono text-white/20 tracking-widest text-center">
+                  Clique no ícone de câmera
+                  <br />
+                  para iniciar análise ao vivo
+                </span>
+              </div>
+            </motion.div>
           ) : isGeminiAnalyzing ? (
+            /* Gemini analyzing */
             <motion.div
               key="gemini-analyzing"
               initial={{ opacity: 0, y: 4 }}
@@ -593,10 +516,11 @@ export function SignalPanel({
                 className="text-[10px] font-mono tracking-widest"
                 style={{ color: "rgba(0,229,255,0.35)" }}
               >
-                PROCESSANDO IMAGEM DO GRÁFICO
+                IDENTIFICANDO PADRÕES DE CANDLE
               </span>
             </motion.div>
           ) : geminiAnalysis ? (
+            /* Gemini result — show only candle patterns */
             <motion.div
               key="gemini-result"
               initial={{ opacity: 0, y: 4 }}
@@ -605,49 +529,53 @@ export function SignalPanel({
               transition={{ duration: 0.4 }}
               className="space-y-2"
             >
-              {geminiAnalysis
-                .split("\n")
-                .filter(Boolean)
-                .map((line, i) => (
-                  <p
-                    // biome-ignore lint/suspicious/noArrayIndexKey: static list from API response
-                    key={i}
-                    className="text-[12px] font-mono leading-relaxed text-white/70"
+              {extractCandlePatterns(geminiAnalysis).map((line, i) => (
+                <p
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static list from API response
+                  key={i}
+                  className="text-[12px] font-mono leading-relaxed text-white/75"
+                >
+                  <span
+                    style={{ color: "rgba(0,229,255,0.5)" }}
+                    className="mr-1.5"
                   >
-                    <span
-                      style={{ color: "rgba(0,229,255,0.5)" }}
-                      className="mr-1.5"
-                    >
-                      ›
-                    </span>
-                    {line}
-                  </p>
-                ))}
+                    ›
+                  </span>
+                  {line}
+                </p>
+              ))}
               <p
                 className="text-[9px] font-mono tracking-widest mt-3 pt-2"
                 style={{
-                  color: "rgba(0,229,255,0.4)",
+                  color: "rgba(0,229,255,0.35)",
                   borderTop: "1px solid rgba(0,229,255,0.1)",
                 }}
               >
-                ANÁLISE VIA GEMINI VISION
+                PADRÕES DETECTADOS · GEMINI VISION
               </p>
             </motion.div>
           ) : (
+            /* Capture active but Gemini not yet fired — waiting for 20s window */
             <motion.div
-              key={isAnalyzing ? "loading" : signal ? "signal" : "idle"}
+              key="capture-waiting"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-2 py-4"
             >
-              <AIAnalysisText
-                signal={signal}
-                isAnalyzing={isAnalyzing}
-                rsiValue={rsiValue}
-                ema9={ema9}
-                ema21={ema21}
-                pattern={pattern}
-              />
+              <motion.div
+                animate={{ opacity: [0.3, 0.8, 0.3] }}
+                transition={{ duration: 1.8, repeat: Number.POSITIVE_INFINITY }}
+                className="text-[11px] font-mono tracking-widest text-center"
+                style={{ color: "rgba(0,200,83,0.5)" }}
+              >
+                ● CAPTURA ATIVA
+              </motion.div>
+              <span className="text-[10px] font-mono text-white/20 tracking-widest text-center">
+                Análise inicia nos últimos
+                <br />
+                20 segundos da vela
+              </span>
             </motion.div>
           )}
         </AnimatePresence>

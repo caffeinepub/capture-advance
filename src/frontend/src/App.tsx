@@ -446,14 +446,14 @@ export default function App() {
                     },
                   },
                   {
-                    text: "Você é um analista técnico especializado em trading de opções binárias. Analise APENAS o que é VISÍVEL nesta imagem do gráfico de candlestick. Foque exclusivamente nos padrões visuais presentes no gráfico. Forneça: 1) Padrões de velas visíveis no gráfico (ex: engulfing, doji, hammer, shooting star, pin bar, inside bar, etc.) — descreva apenas os que consegue ver claramente. 2) Estrutura de tendência visual (sequência de topos e fundos visíveis). 3) Níveis de suporte e resistência visíveis nas ordenadas (eixo Y do gráfico). 4) Recomendação final baseada SOMENTE nos padrões visuais do gráfico: BUY (COMPRA) ou SELL (VENDA) com confiança de 0 a 100%. NÃO use RSI, EMA, MACD ou qualquer indicador externo — analise apenas o que está visível no gráfico. 5) Se visível, qual par de moedas? Responda no formato PAR: XXX/YYY na última linha. Seja conciso e direto.",
+                    text: "Você é um analista de trading. Observe esta imagem de gráfico de candlestick e identifique SOMENTE os últimos padrões de candle visíveis na parte direita/mais recente do gráfico. Liste apenas os nomes dos padrões detectados (ex: Doji, Engulfing de Alta, Hammer, Shooting Star, Pin Bar, Inside Bar, etc.) e para cada um informe: nome do padrão e sinal (COMPRA ou VENDA). Seja extremamente conciso — máximo 3 padrões. NÃO mencione RSI, EMA, médias móveis, suporte, resistência nem qualquer outro indicador. Apenas os últimos padrões de candle visíveis. Se identificar o par de moedas, inclua na última linha no formato PAR: XXX/YYY.",
                   },
                 ],
               },
             ],
             generationConfig: {
-              maxOutputTokens: 450,
-              temperature: 0.2,
+              maxOutputTokens: 200,
+              temperature: 0.1,
             },
           }),
         },
@@ -1145,6 +1145,7 @@ export default function App() {
               isGeminiAnalyzing={isGeminiAnalyzing}
               liveStream={liveStream}
               lastOutcome={lastOutcome}
+              hasCapture={!!(liveStream || captureDataUrl)}
             />
 
             <SignalHistory

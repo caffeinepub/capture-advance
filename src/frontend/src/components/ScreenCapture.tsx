@@ -202,6 +202,10 @@ export function LiveVideoPreview({
   @keyframes dotBlink{
     0%,100%{opacity:0.2;}50%{opacity:1;}
   }
+  @keyframes arrowBounce{
+    0%,100%{transform:translateY(0);}
+    50%{transform:translateY(-10px);}
+  }
 </style>
 </head>
 <body>
@@ -261,10 +265,13 @@ export function LiveVideoPreview({
         \`;
       } else if (signalDirection) {
         const color = signalDirection === 'buy' ? '#00c853' : '#ff1744';
-        const text = signalDirection === 'buy' ? '▲ BUY' : '▼ SELL';
+        const arrow = signalDirection === 'buy' ? '↑' : '↓';
+        const label = signalDirection === 'buy' ? 'BUY' : 'SELL';
         signalContent.innerHTML = \`
-          <div id="big-text" style="color:\${color}">\${text}</div>
-          <div style="font-size:0.9rem;color:\${color};opacity:0.7;letter-spacing:0.2em">\${signalDirection === 'buy' ? 'ENTRE NA COMPRA AGORA' : 'ENTRE NA VENDA AGORA'}</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div id="arrow-icon" style="font-size:3.5rem;line-height:1;color:\${color};animation:arrowBounce 0.9s ease-in-out infinite, textGlow 1.2s ease-in-out infinite;">\${arrow}</div>
+            <div id="big-text" style="color:\${color};font-size:2.2rem;">\${label}</div>
+          </div>
         \`;
         // Darken background
         overlay.style.background = \`rgba(0,0,0,0.65)\`;
@@ -495,34 +502,69 @@ export function LiveVideoPreview({
                     </div>
                   </div>
                 ) : signalDirection ? (
-                  <motion.div
-                    animate={{
-                      textShadow:
-                        signalDirection === "buy"
-                          ? [
-                              "0 0 30px rgba(0,200,83,0.6)",
-                              "0 0 60px rgba(0,200,83,1)",
-                              "0 0 30px rgba(0,200,83,0.6)",
-                            ]
-                          : [
-                              "0 0 30px rgba(255,23,68,0.6)",
-                              "0 0 60px rgba(255,23,68,1)",
-                              "0 0 30px rgba(255,23,68,0.6)",
-                            ],
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      repeat: Number.POSITIVE_INFINITY,
-                    }}
-                    className="font-black font-mono tracking-[0.08em]"
-                    style={{
-                      fontSize: "2.5rem",
-                      lineHeight: 1,
-                      color: signalDirection === "buy" ? "#00c853" : "#ff1744",
-                    }}
-                  >
-                    {signalDirection === "buy" ? "▲ BUY" : "▼ SELL"}
-                  </motion.div>
+                  /* Arrow + BUY/SELL signal */
+                  <div className="flex flex-col items-center gap-1">
+                    {/* Giant arrow */}
+                    <motion.div
+                      animate={{
+                        y: signalDirection === "buy" ? [0, -10, 0] : [0, 10, 0],
+                        filter:
+                          signalDirection === "buy"
+                            ? [
+                                "drop-shadow(0 0 12px rgba(0,200,83,0.6))",
+                                "drop-shadow(0 0 28px rgba(0,200,83,1))",
+                                "drop-shadow(0 0 12px rgba(0,200,83,0.6))",
+                              ]
+                            : [
+                                "drop-shadow(0 0 12px rgba(255,23,68,0.6))",
+                                "drop-shadow(0 0 28px rgba(255,23,68,1))",
+                                "drop-shadow(0 0 12px rgba(255,23,68,0.6))",
+                              ],
+                      }}
+                      transition={{
+                        duration: 0.9,
+                        repeat: Number.POSITIVE_INFINITY,
+                      }}
+                      style={{
+                        fontSize: "3.5rem",
+                        lineHeight: 1,
+                        color:
+                          signalDirection === "buy" ? "#00c853" : "#ff1744",
+                      }}
+                    >
+                      {signalDirection === "buy" ? "↑" : "↓"}
+                    </motion.div>
+                    {/* BUY / SELL label */}
+                    <motion.div
+                      animate={{
+                        textShadow:
+                          signalDirection === "buy"
+                            ? [
+                                "0 0 20px rgba(0,200,83,0.6)",
+                                "0 0 50px rgba(0,200,83,1)",
+                                "0 0 20px rgba(0,200,83,0.6)",
+                              ]
+                            : [
+                                "0 0 20px rgba(255,23,68,0.6)",
+                                "0 0 50px rgba(255,23,68,1)",
+                                "0 0 20px rgba(255,23,68,0.6)",
+                              ],
+                      }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Number.POSITIVE_INFINITY,
+                      }}
+                      className="font-black font-mono tracking-[0.12em]"
+                      style={{
+                        fontSize: "2rem",
+                        lineHeight: 1,
+                        color:
+                          signalDirection === "buy" ? "#00c853" : "#ff1744",
+                      }}
+                    >
+                      {signalDirection === "buy" ? "BUY" : "SELL"}
+                    </motion.div>
+                  </div>
                 ) : null}
               </motion.div>
             )}
