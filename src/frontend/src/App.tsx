@@ -31,6 +31,11 @@ import {
   fetchTickerInfo,
   isCryptoPair,
 } from "./utils/binanceApi";
+
+/** Format price: 5 decimal places for forex, 2 for crypto */
+function formatPrice(price: number, pair: string): string {
+  return isCryptoPair(pair) ? price.toFixed(2) : price.toFixed(5);
+}
 import {
   type Candle,
   type CandlePattern,
@@ -973,7 +978,7 @@ export default function App() {
             </div>
 
             {/* Currency pair display / edit */}
-            <div className="flex items-center justify-center pb-1.5 gap-1.5">
+            <div className="flex flex-col items-center justify-center pb-1.5 gap-0.5">
               {editingPair ? (
                 <div className="flex items-center gap-1">
                   <input
@@ -1022,7 +1027,7 @@ export default function App() {
                     className="text-[11px] font-black font-mono tracking-widest"
                     style={{ color: "rgba(0,200,83,0.7)" }}
                   >
-                    {currencyPair}
+                    {liveStream ? "WEB/CONTEUDO" : currencyPair}
                   </span>
                   <Pencil
                     size={9}
@@ -1031,6 +1036,16 @@ export default function App() {
                   />
                 </button>
               )}
+              {/* Live price below pair name */}
+              <span
+                className="text-[10px] font-mono font-bold tabular-nums"
+                style={{
+                  color: "rgba(0,200,83,0.55)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {formatPrice(lastPrice, currencyPair)}
+              </span>
             </div>
           </div>
 
@@ -1045,12 +1060,12 @@ export default function App() {
             <div className="flex items-center gap-1.5">
               <span className="text-[9px] font-mono text-white/25">BID</span>
               <span className="text-[11px] font-mono font-bold text-[#00c853]">
-                {bid.toFixed(2)}
+                {formatPrice(bid, currencyPair)}
               </span>
             </div>
             <div className="text-center">
               <div className="text-[12px] font-black font-mono text-white/80">
-                {lastPrice.toFixed(2)}
+                {formatPrice(lastPrice, currencyPair)}
               </div>
               <div
                 className="text-[9px] font-mono font-semibold"
@@ -1063,7 +1078,7 @@ export default function App() {
             <div className="flex items-center gap-1.5">
               <span className="text-[9px] font-mono text-white/25">ASK</span>
               <span className="text-[11px] font-mono font-bold text-[#ff1744]">
-                {ask.toFixed(2)}
+                {formatPrice(ask, currencyPair)}
               </span>
             </div>
           </div>

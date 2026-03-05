@@ -1,4 +1,4 @@
-import { Camera, MonitorPlay, X } from "lucide-react";
+import { Camera, Maximize2, Minimize2, MonitorPlay, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -120,6 +120,7 @@ interface LiveVideoPreviewProps {
 
 export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -127,6 +128,23 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
       videoRef.current.play().catch(() => {});
     }
   }, [stream]);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  function handleToggleFullscreen() {
+    if (!isFullscreen) {
+      videoRef.current?.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -160,16 +178,30 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
               AO VIVO
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onStop}
-            className="flex items-center justify-center w-4 h-4 rounded hover:opacity-70 transition-opacity"
-            style={{ color: "rgba(255,255,255,0.3)" }}
-            title="Parar captura"
-            data-ocid="capture.delete_button"
-          >
-            <X size={10} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleToggleFullscreen}
+              className="flex items-center justify-center w-4 h-4 rounded hover:opacity-70 transition-opacity"
+              style={{ color: "rgba(0,229,255,0.6)" }}
+              title={
+                isFullscreen ? "Sair de tela cheia" : "Expandir para tela cheia"
+              }
+              data-ocid="capture.toggle"
+            >
+              {isFullscreen ? <Minimize2 size={10} /> : <Maximize2 size={10} />}
+            </button>
+            <button
+              type="button"
+              onClick={onStop}
+              className="flex items-center justify-center w-4 h-4 rounded hover:opacity-70 transition-opacity"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+              title="Parar captura"
+              data-ocid="capture.delete_button"
+            >
+              <X size={10} />
+            </button>
+          </div>
         </div>
 
         {/* Live video */}
