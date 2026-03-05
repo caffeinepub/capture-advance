@@ -240,6 +240,26 @@
   z-index: 10;
 }
 
+/* WIN border glow */
+@keyframes winBorderGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(0,200,83,0.7), 0 0 30px rgba(0,200,83,0.4), 0 0 60px rgba(0,200,83,0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(0,200,83,1), 0 0 60px rgba(0,200,83,0.7), 0 0 120px rgba(0,200,83,0.3);
+  }
+}
+
+/* LOSS border glow */
+@keyframes lossBorderGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(255,23,68,0.7), 0 0 30px rgba(255,23,68,0.4), 0 0 60px rgba(255,23,68,0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(255,23,68,1), 0 0 60px rgba(255,23,68,0.7), 0 0 120px rgba(255,23,68,0.3);
+  }
+}
+
 /* Chart scrollbar */
 ::-webkit-scrollbar {
   width: 3px;

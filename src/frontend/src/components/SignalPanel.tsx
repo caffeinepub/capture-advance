@@ -29,6 +29,8 @@ interface SignalPanelProps {
   geminiAnalysis?: string | null;
   isGeminiAnalyzing?: boolean;
   liveStream?: MediaStream | null;
+  /** last marked outcome for WIN/LOSS border glow */
+  lastOutcome?: "win" | "loss" | null;
 }
 
 function AnimatedDots() {
@@ -235,6 +237,7 @@ function AIAnalysisText({
 export function SignalPanel({
   signal,
   isAnalyzing,
+  countdown,
   rsiValue,
   ema9,
   ema21,
@@ -248,12 +251,34 @@ export function SignalPanel({
   geminiAnalysis,
   isGeminiAnalyzing = false,
   liveStream,
+  lastOutcome,
 }: SignalPanelProps) {
   const isGlowBuy = signal?.direction === "buy";
   const isGlowSell = signal?.direction === "sell";
+  const isWinGlow = lastOutcome === "win";
+  const isLossGlow = lastOutcome === "loss";
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="flex flex-col gap-4"
+      style={
+        isWinGlow
+          ? {
+              borderRadius: "0.75rem",
+              boxShadow:
+                "0 0 0 2px rgba(0,200,83,0.7), 0 0 30px rgba(0,200,83,0.4), 0 0 60px rgba(0,200,83,0.15)",
+              animation: "winBorderGlow 1.2s ease-in-out infinite",
+            }
+          : isLossGlow
+            ? {
+                borderRadius: "0.75rem",
+                boxShadow:
+                  "0 0 0 2px rgba(255,23,68,0.7), 0 0 30px rgba(255,23,68,0.4), 0 0 60px rgba(255,23,68,0.15)",
+                animation: "lossBorderGlow 1.2s ease-in-out infinite",
+              }
+            : undefined
+      }
+    >
       {/* Signal Direction Display */}
       <div
         className="relative flex flex-col items-center justify-center rounded-xl overflow-hidden py-8"
@@ -415,7 +440,13 @@ export function SignalPanel({
 
       {/* Live video preview (shown when stream is active — replaces still thumb) */}
       {liveStream && onClearCapture && (
-        <LiveVideoPreview stream={liveStream} onStop={onClearCapture} />
+        <LiveVideoPreview
+          stream={liveStream}
+          onStop={onClearCapture}
+          countdown={countdown}
+          signalDirection={signal?.direction ?? null}
+          isAnalyzing={isAnalyzing}
+        />
       )}
 
       {/* Capture thumbnail (shown only when no live stream but still frame exists) */}

@@ -1,4 +1,12 @@
-import { Camera, ChevronDown, ChevronUp, MonitorPlay, X } from "lucide-react";
+import {
+  Brain,
+  Camera,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  MonitorPlay,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -116,9 +124,21 @@ export function ScreenCaptureButton({
 interface LiveVideoPreviewProps {
   stream: MediaStream;
   onStop: () => void;
+  /** countdown seconds -- used to trigger analysis animation overlay */
+  countdown?: number;
+  /** current signal direction when it fires */
+  signalDirection?: "buy" | "sell" | null;
+  /** true when IA is analyzing */
+  isAnalyzing?: boolean;
 }
 
-export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
+export function LiveVideoPreview({
+  stream,
+  onStop,
+  countdown = 0,
+  signalDirection,
+  isAnalyzing = false,
+}: LiveVideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -131,6 +151,160 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
 
   const compactHeight = 160;
   const expandedHeight = 400;
+
+  const isSignalWindow = countdown <= 20 && countdown > 0;
+
+  function handleOpenFloatingWindow() {
+    // Open a small popup window that shows the live video + signal overlay
+    const w = 480;
+    const h = 320;
+    const left = window.screen.width - w - 20;
+    const top = 20;
+    const popup = window.open(
+      "",
+      "ca_live_float",
+      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`,
+    );
+    if (!popup) return;
+
+    // Write a self-contained HTML page into the popup
+    popup.document.open();
+    popup.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<title>Capture Advance · AO VIVO</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;background:#080810;overflow:hidden;font-family:monospace;}
+  #wrap{position:relative;width:100%;height:100%;display:flex;flex-direction:column;}
+  #header{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:rgba(0,229,255,0.06);border-bottom:1px solid rgba(0,229,255,0.2);flex-shrink:0;}
+  #dot{width:8px;height:8px;border-radius:50%;background:#00e5ff;animation:pulse 0.8s ease-in-out infinite;}
+  #label{font-size:10px;color:#00e5ff;font-weight:700;letter-spacing:0.15em;margin-left:6px;}
+  #video{flex:1;width:100%;object-fit:fill;display:block;}
+  #overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;pointer-events:none;transition:opacity 0.4s;}
+  #overlay.hidden{opacity:0;}
+  #countdown-label{font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:0.25em;}
+  #countdown-val{font-size:13px;font-weight:700;}
+  #big-text{font-size:4rem;font-weight:900;letter-spacing:0.08em;line-height:1;animation:textGlow 1.2s ease-in-out infinite;}
+  #analyzing-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;}
+  #brain-icon{font-size:2.5rem;animation:spin 1.2s linear infinite;}
+  #analyzing-text{font-size:1.5rem;font-weight:900;letter-spacing:0.15em;animation:blink 0.8s ease-in-out infinite;}
+  .dots{display:flex;gap:6px;margin-top:4px;}
+  .dot-item{width:10px;height:10px;border-radius:50%;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.4;}}
+  @keyframes textGlow{
+    0%,100%{text-shadow:0 0 30px currentColor;}
+    50%{text-shadow:0 0 70px currentColor, 0 0 120px currentColor;}
+  }
+  @keyframes dotBlink{
+    0%,100%{opacity:0.2;}50%{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="header">
+    <div style="display:flex;align-items:center">
+      <div id="dot"></div>
+      <span id="label">AO VIVO · CAPTURE ADVANCE</span>
+    </div>
+    <span id="countdown-display" style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:0.1em"></span>
+  </div>
+  <video id="video" autoplay muted playsinline></video>
+  <div id="overlay" class="hidden">
+    <div id="countdown-label">⏱ FALTAM <span id="countdown-val">20s</span> PARA FECHAR VELA</div>
+    <div id="signal-content"></div>
+  </div>
+</div>
+<script>
+  // Receive stream from opener
+  window._setStream = function(stream) {
+    const vid = document.getElementById('video');
+    vid.srcObject = stream;
+    vid.play().catch(()=>{});
+  };
+  // Receive state updates from opener
+  window._updateState = function(state) {
+    const overlay = document.getElementById('overlay');
+    const countdownVal = document.getElementById('countdown-val');
+    const countdownDisplay = document.getElementById('countdown-display');
+    const signalContent = document.getElementById('signal-content');
+
+    const {countdown, isAnalyzing, signalDirection, isSignalWindow} = state;
+
+    // Update header countdown
+    if (countdown > 0) {
+      countdownDisplay.textContent = countdown + 's';
+      const c = countdown <= 5 ? '#ff1744' : countdown <= 10 ? '#ff9100' : '#ffd600';
+      countdownDisplay.style.color = c;
+    }
+
+    // Show/hide overlay
+    if (isSignalWindow && (isAnalyzing || signalDirection)) {
+      overlay.classList.remove('hidden');
+      countdownVal.textContent = countdown + 's';
+      const cColor = countdown <= 5 ? '#ff1744' : countdown <= 10 ? '#ff9100' : '#ffd600';
+      countdownVal.style.color = cColor;
+
+      if (isAnalyzing) {
+        signalContent.innerHTML = \`
+          <div id="analyzing-wrap">
+            <div id="brain-icon">🧠</div>
+            <div id="analyzing-text" style="color:#ffd600">IA ANALISANDO...</div>
+            <div class="dots">
+              \${[0,1,2,3,4].map(i => \`<div class="dot-item" style="background:#ffd600;animation:dotBlink 0.9s ease-in-out \${i*0.15}s infinite"></div>\`).join('')}
+            </div>
+          </div>
+        \`;
+      } else if (signalDirection) {
+        const color = signalDirection === 'buy' ? '#00c853' : '#ff1744';
+        const text = signalDirection === 'buy' ? '▲ BUY' : '▼ SELL';
+        signalContent.innerHTML = \`
+          <div id="big-text" style="color:\${color}">\${text}</div>
+          <div style="font-size:0.9rem;color:\${color};opacity:0.7;letter-spacing:0.2em">\${signalDirection === 'buy' ? 'ENTRE NA COMPRA AGORA' : 'ENTRE NA VENDA AGORA'}</div>
+        \`;
+        // Darken background
+        overlay.style.background = \`rgba(0,0,0,0.65)\`;
+        overlay.style.backdropFilter = 'blur(4px)';
+      }
+    } else {
+      overlay.classList.add('hidden');
+      overlay.style.background = '';
+      overlay.style.backdropFilter = '';
+    }
+  };
+</script>
+</body>
+</html>`);
+    popup.document.close();
+
+    // Wait for popup to be ready, then push stream and state
+    const tryConnect = () => {
+      if (
+        popup.closed ||
+        typeof (
+          popup as Window &
+            typeof globalThis & { _setStream?: (s: MediaStream) => void }
+        )._setStream !== "function"
+      ) {
+        setTimeout(tryConnect, 100);
+        return;
+      }
+      (
+        popup as Window &
+          typeof globalThis & { _setStream: (s: MediaStream) => void }
+      )._setStream(stream);
+    };
+    setTimeout(tryConnect, 300);
+
+    // Store popup ref in window for state updates
+    (
+      window as Window & typeof globalThis & { _caFloatPopup?: Window }
+    )._caFloatPopup = popup;
+  }
 
   return (
     <AnimatePresence>
@@ -175,6 +349,17 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
               data-ocid="capture.toggle"
             >
               {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {/* Float popup button */}
+            <button
+              type="button"
+              onClick={handleOpenFloatingWindow}
+              className="flex items-center justify-center w-4 h-4 rounded hover:opacity-70 transition-opacity"
+              style={{ color: "rgba(0,229,255,0.6)" }}
+              title="Abrir vídeo em janela flutuante"
+              data-ocid="capture.open_modal_button"
+            >
+              <ExternalLink size={10} />
             </button>
             <button
               type="button"
@@ -225,6 +410,123 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
               ease: "linear",
             }}
           />
+          {/* Signal window overlay inside the video preview */}
+          <AnimatePresence>
+            {isSignalWindow && (isAnalyzing || signalDirection) && (
+              <motion.div
+                key={`live-overlay-${isAnalyzing ? "analyzing" : signalDirection}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-2"
+                style={{
+                  background: "rgba(0,0,0,0.7)",
+                  backdropFilter: "blur(3px)",
+                  pointerEvents: "none",
+                }}
+              >
+                {/* Countdown */}
+                <div
+                  className="text-[10px] font-mono tracking-[0.25em] font-bold"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                >
+                  ⏱ FALTAM{" "}
+                  <span
+                    style={{
+                      color:
+                        countdown <= 5
+                          ? "#ff1744"
+                          : countdown <= 10
+                            ? "#ff9100"
+                            : "#ffd600",
+                    }}
+                  >
+                    {countdown}s
+                  </span>
+                </div>
+
+                {isAnalyzing ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Number.POSITIVE_INFINITY,
+                        ease: "linear",
+                      }}
+                    >
+                      <Brain
+                        size={28}
+                        style={{
+                          color: "#ffd600",
+                          filter: "drop-shadow(0 0 10px rgba(255,214,0,0.7))",
+                        }}
+                      />
+                    </motion.div>
+                    <motion.div
+                      animate={{ opacity: [0.6, 1, 0.6] }}
+                      transition={{
+                        duration: 0.8,
+                        repeat: Number.POSITIVE_INFINITY,
+                      }}
+                      className="text-base font-black font-mono tracking-[0.12em]"
+                      style={{
+                        color: "#ffd600",
+                        textShadow: "0 0 20px rgba(255,214,0,0.6)",
+                      }}
+                    >
+                      IA ANALISANDO...
+                    </motion.div>
+                    <div className="flex gap-1.5">
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-2 h-2 rounded-full"
+                          style={{ background: "#ffd600" }}
+                          animate={{ opacity: [0.2, 1, 0.2] }}
+                          transition={{
+                            duration: 0.9,
+                            repeat: Number.POSITIVE_INFINITY,
+                            delay: i * 0.15,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : signalDirection ? (
+                  <motion.div
+                    animate={{
+                      textShadow:
+                        signalDirection === "buy"
+                          ? [
+                              "0 0 30px rgba(0,200,83,0.6)",
+                              "0 0 60px rgba(0,200,83,1)",
+                              "0 0 30px rgba(0,200,83,0.6)",
+                            ]
+                          : [
+                              "0 0 30px rgba(255,23,68,0.6)",
+                              "0 0 60px rgba(255,23,68,1)",
+                              "0 0 30px rgba(255,23,68,0.6)",
+                            ],
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Number.POSITIVE_INFINITY,
+                    }}
+                    className="font-black font-mono tracking-[0.08em]"
+                    style={{
+                      fontSize: "2.5rem",
+                      lineHeight: 1,
+                      color: signalDirection === "buy" ? "#00c853" : "#ff1744",
+                    }}
+                  >
+                    {signalDirection === "buy" ? "▲ BUY" : "▼ SELL"}
+                  </motion.div>
+                ) : null}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </motion.div>
     </AnimatePresence>

@@ -91,6 +91,10 @@ export default function App() {
   const [isWindowVisible, setIsWindowVisible] = useState(!document.hidden);
   const [captureDataUrl, setCaptureDataUrl] = useState<string | null>(null);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
+  const [lastOutcome, setLastOutcome] = useState<"win" | "loss" | null>(null);
+  const lastOutcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
   const [isGeminiAnalyzing, setIsGeminiAnalyzing] = useState(false);
   const [isLiveData, setIsLiveData] = useState(false);
@@ -102,6 +106,7 @@ export default function App() {
   const isPopup = window.opener !== null || window.name === "ca_popup";
   const pairInputRef = useRef<HTMLInputElement>(null);
   const signalFiredRef = useRef(false);
+
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevCountdownRef = useRef(0);
@@ -377,6 +382,23 @@ export default function App() {
     };
   }, [timeframe]);
 
+  // Sync float popup window with current state
+  useEffect(() => {
+    const popup = (
+      window as Window &
+        typeof globalThis & {
+          _caFloatPopup?: Window & { _updateState?: (s: object) => void };
+        }
+    )._caFloatPopup;
+    if (!popup || popup.closed) return;
+    popup._updateState?.({
+      countdown,
+      isAnalyzing,
+      signalDirection: signal?.direction ?? null,
+      isSignalWindow: countdown <= 20 && countdown > 0,
+    });
+  }, [countdown, isAnalyzing, signal]);
+
   /** Capture a still frame from the live background video element */
   const captureFrameFromLiveStream = useCallback((): string | null => {
     const video = videoBackgroundRef.current;
@@ -424,7 +446,7 @@ export default function App() {
                     },
                   },
                   {
-                    text: "Você é um analista financeiro especializado em trading de opções binárias. Analise este gráfico de candlestick e forneça: 1) Direção da tendência (ALTA ou BAIXA), 2) Padrões de velas identificados, 3) Níveis de suporte e resistência visíveis nas ordenadas (eixo Y), 4) Sua recomendação final: BUY (COMPRA) ou SELL (VENDA) com percentual de confiança de 0 a 100%. 5) Qual é o par de moedas visível neste gráfico? Responda no formato PAR: XXX/YYY na última linha se identificar. Responda em português de forma concisa.",
+                    text: "Você é um analista técnico especializado em trading de opções binárias. Analise APENAS o que é VISÍVEL nesta imagem do gráfico de candlestick. Foque exclusivamente nos padrões visuais presentes no gráfico. Forneça: 1) Padrões de velas visíveis no gráfico (ex: engulfing, doji, hammer, shooting star, pin bar, inside bar, etc.) — descreva apenas os que consegue ver claramente. 2) Estrutura de tendência visual (sequência de topos e fundos visíveis). 3) Níveis de suporte e resistência visíveis nas ordenadas (eixo Y do gráfico). 4) Recomendação final baseada SOMENTE nos padrões visuais do gráfico: BUY (COMPRA) ou SELL (VENDA) com confiança de 0 a 100%. NÃO use RSI, EMA, MACD ou qualquer indicador externo — analise apenas o que está visível no gráfico. 5) Se visível, qual par de moedas? Responda no formato PAR: XXX/YYY na última linha. Seja conciso e direto.",
                   },
                 ],
               },
@@ -629,6 +651,11 @@ export default function App() {
     toast.success(
       outcome === SignalOutcome.win ? "Marcado como WIN!" : "Marcado como LOSS",
     );
+    // Trigger border glow for 5 seconds
+    const result = outcome === SignalOutcome.win ? "win" : "loss";
+    setLastOutcome(result);
+    if (lastOutcomeTimerRef.current) clearTimeout(lastOutcomeTimerRef.current);
+    lastOutcomeTimerRef.current = setTimeout(() => setLastOutcome(null), 5000);
   }
 
   const closes = candles.map((c) => c.close);
@@ -1117,6 +1144,7 @@ export default function App() {
               geminiAnalysis={geminiAnalysis}
               isGeminiAnalyzing={isGeminiAnalyzing}
               liveStream={liveStream}
+              lastOutcome={lastOutcome}
             />
 
             <SignalHistory
