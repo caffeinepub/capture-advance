@@ -1,4 +1,4 @@
-import { Camera, Maximize2, Minimize2, MonitorPlay, X } from "lucide-react";
+import { Camera, ChevronDown, ChevronUp, MonitorPlay, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -120,7 +120,7 @@ interface LiveVideoPreviewProps {
 
 export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -129,22 +129,8 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
     }
   }, [stream]);
 
-  useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", handleFsChange);
-    return () =>
-      document.removeEventListener("fullscreenchange", handleFsChange);
-  }, []);
-
-  function handleToggleFullscreen() {
-    if (!isFullscreen) {
-      videoRef.current?.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
-    }
-  }
+  const compactHeight = 160;
+  const expandedHeight = 400;
 
   return (
     <AnimatePresence>
@@ -179,17 +165,16 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
             </span>
           </div>
           <div className="flex items-center gap-1">
+            {/* Expand / collapse accordion button */}
             <button
               type="button"
-              onClick={handleToggleFullscreen}
+              onClick={() => setIsExpanded((v) => !v)}
               className="flex items-center justify-center w-4 h-4 rounded hover:opacity-70 transition-opacity"
               style={{ color: "rgba(0,229,255,0.6)" }}
-              title={
-                isFullscreen ? "Sair de tela cheia" : "Expandir para tela cheia"
-              }
+              title={isExpanded ? "Recolher vídeo" : "Expandir vídeo"}
               data-ocid="capture.toggle"
             >
-              {isFullscreen ? <Minimize2 size={10} /> : <Maximize2 size={10} />}
+              {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
             <button
               type="button"
@@ -204,15 +189,22 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
           </div>
         </div>
 
-        {/* Live video */}
-        <div style={{ background: "rgba(0,0,0,0.6)", position: "relative" }}>
+        {/* Live video — height animates between compact and expanded */}
+        <motion.div
+          animate={{ height: isExpanded ? expandedHeight : compactHeight }}
+          transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+          style={{
+            background: "rgba(0,0,0,0.6)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
           <video
             ref={videoRef}
             muted
             playsInline
-            className="w-full"
+            className="w-full h-full"
             style={{
-              height: 160,
               objectFit: "cover",
               objectPosition: "top",
               display: "block",
@@ -233,7 +225,7 @@ export function LiveVideoPreview({ stream, onStop }: LiveVideoPreviewProps) {
               ease: "linear",
             }}
           />
-        </div>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
   );

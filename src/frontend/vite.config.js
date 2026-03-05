@@ -42,6 +42,7 @@ export default defineConfig({
     environment("all", { prefix: "DFX_" }),
     environment(["II_URL"]),
     environment(["STORAGE_GATEWAY_URL"]),
+    environment({ VITE_GEMINI_API_KEY: "" }),
     react(),
   ],
   resolve: {
