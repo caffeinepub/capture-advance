@@ -411,7 +411,7 @@ export function SignalPanel({
         </motion.button>
       </div>
 
-      {/* Capture thumbnail (shown above ANÁLISE IA when a capture exists) */}
+      {/* Capture thumbnail (shown when still frame exists) */}
       {captureDataUrl && onClearCapture && (
         <CaptureThumb dataUrl={captureDataUrl} onClear={onClearCapture} />
       )}

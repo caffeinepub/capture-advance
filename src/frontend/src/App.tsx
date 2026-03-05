@@ -1,4 +1,11 @@
-import { Check, ExternalLink, Pencil, Wifi, WifiOff } from "lucide-react";
+import {
+  Brain,
+  Check,
+  ExternalLink,
+  Pencil,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -78,6 +85,7 @@ export default function App() {
   const [openPrice, setOpenPrice] = useState(4500);
   const [isWindowVisible, setIsWindowVisible] = useState(!document.hidden);
   const [captureDataUrl, setCaptureDataUrl] = useState<string | null>(null);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
   const [isGeminiAnalyzing, setIsGeminiAnalyzing] = useState(false);
   const [isLiveData, setIsLiveData] = useState(false);
@@ -93,6 +101,7 @@ export default function App() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevCountdownRef = useRef(0);
   const triggerRef = useRef<(() => void) | null>(null);
+  const videoBackgroundRef = useRef<HTMLVideoElement>(null);
 
   // Detect when window is hidden (minimized, other tab, etc.)
   useEffect(() => {
@@ -311,6 +320,16 @@ export default function App() {
     triggerRef.current = triggerSignalAnalysis;
   }, [triggerSignalAnalysis]);
 
+  // Attach live stream to fullscreen background video
+  useEffect(() => {
+    if (videoBackgroundRef.current) {
+      videoBackgroundRef.current.srcObject = liveStream;
+      if (liveStream) {
+        videoBackgroundRef.current.play().catch(() => {});
+      }
+    }
+  }, [liveStream]);
+
   useEffect(() => {
     if (countdownRef.current) clearInterval(countdownRef.current);
 
@@ -348,20 +367,7 @@ export default function App() {
   const analyzeWithGemini = useCallback(async (dataUrl: string) => {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
     if (!apiKey || apiKey === "DEMO_KEY_NOT_SET" || apiKey === "") {
-      toast.error(
-        "Configure a chave VITE_GEMINI_API_KEY para ativar a análise Gemini",
-        {
-          style: {
-            background: "rgba(8,8,16,0.95)",
-            border: "1px solid rgba(0,229,255,0.3)",
-            color: "#00e5ff",
-            backdropFilter: "blur(12px)",
-          },
-        },
-      );
-      setGeminiAnalysis(
-        "Chave de API Gemini não configurada.\nDefina VITE_GEMINI_API_KEY para ativar a análise por visão computacional.",
-      );
+      // No API key configured — silently skip Gemini, use local analysis only
       return;
     }
 
@@ -592,6 +598,21 @@ export default function App() {
     >
       <Toaster position="top-right" />
 
+      {/* Fullscreen live video background when stream is active */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{ zIndex: liveStream ? 2 : -1, transition: "opacity 0.5s" }}
+      >
+        <video
+          ref={videoBackgroundRef}
+          autoPlay
+          muted
+          playsInline
+          className="w-full h-full"
+          style={{ objectFit: "fill", display: "block" }}
+        />
+      </div>
+
       {/* 
         Ghost scan grid behind panel (subtle, to give depth without blocking broker view)
       */}
@@ -811,6 +832,14 @@ export default function App() {
                   setGeminiAnalysis(null);
                   analyzeWithGemini(url);
                 }}
+                onStreamReady={(stream) => {
+                  setLiveStream(stream);
+                  if (!stream) {
+                    setCaptureDataUrl(null);
+                    setGeminiAnalysis(null);
+                    setIsGeminiAnalyzing(false);
+                  }
+                }}
               />
 
               {!isPopup && (
@@ -995,6 +1024,10 @@ export default function App() {
                 setCaptureDataUrl(null);
                 setGeminiAnalysis(null);
                 setIsGeminiAnalyzing(false);
+                if (liveStream) {
+                  for (const t of liveStream.getTracks()) t.stop();
+                  setLiveStream(null);
+                }
               }}
               geminiAnalysis={geminiAnalysis}
               isGeminiAnalyzing={isGeminiAnalyzing}
@@ -1047,6 +1080,207 @@ export default function App() {
               zIndex: 50,
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════════════════════════════════════════════════
+          FULLSCREEN SIGNAL ALERT OVERLAY
+          Appears at 20 seconds remaining — covers the right side
+          so user can't miss the signal while watching the chart
+      ══════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {isSignalWindow && (isAnalyzing || signal) && (
+          <motion.div
+            key={`signal-overlay-${isAnalyzing ? "analyzing" : signal?.direction}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="fixed pointer-events-none"
+            style={{
+              left: isPopup ? 0 : 360,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 40,
+              background: "rgba(0,0,0,0.65)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.85, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: -10 }}
+              transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+              className="flex flex-col items-center gap-6 px-8"
+            >
+              {/* Countdown seconds remaining */}
+              <div
+                className="text-[11px] font-mono tracking-[0.3em] font-bold"
+                style={{ color: "rgba(255,255,255,0.35)" }}
+              >
+                ⏱ FALTAM{" "}
+                <span
+                  style={{
+                    color:
+                      countdown <= 5
+                        ? "#ff1744"
+                        : countdown <= 10
+                          ? "#ff9100"
+                          : "#ffd600",
+                  }}
+                >
+                  {countdown}s
+                </span>{" "}
+                PARA FECHAR VELA
+              </div>
+
+              {isAnalyzing ? (
+                /* Analyzing state */
+                <div className="flex flex-col items-center gap-5">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Number.POSITIVE_INFINITY,
+                      ease: "linear",
+                    }}
+                  >
+                    <Brain
+                      size={64}
+                      style={{
+                        color: "#ffd600",
+                        filter: "drop-shadow(0 0 20px rgba(255,214,0,0.7))",
+                      }}
+                    />
+                  </motion.div>
+                  <motion.div
+                    animate={{ opacity: [0.6, 1, 0.6] }}
+                    transition={{
+                      duration: 0.8,
+                      repeat: Number.POSITIVE_INFINITY,
+                    }}
+                    className="text-3xl font-black font-mono tracking-[0.15em]"
+                    style={{
+                      color: "#ffd600",
+                      textShadow: "0 0 30px rgba(255,214,0,0.6)",
+                    }}
+                  >
+                    IA ANALISANDO...
+                  </motion.div>
+                  <div className="flex gap-2">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-3 h-3 rounded-full"
+                        style={{ background: "#ffd600" }}
+                        animate={{
+                          opacity: [0.2, 1, 0.2],
+                          scale: [0.8, 1, 0.8],
+                        }}
+                        transition={{
+                          duration: 0.9,
+                          repeat: Number.POSITIVE_INFINITY,
+                          delay: i * 0.15,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : signal ? (
+                /* Signal result */
+                <div className="flex flex-col items-center gap-4">
+                  {/* Big direction text */}
+                  <motion.div
+                    animate={{
+                      textShadow:
+                        signal.direction === "buy"
+                          ? [
+                              "0 0 40px rgba(0,200,83,0.6)",
+                              "0 0 80px rgba(0,200,83,1)",
+                              "0 0 40px rgba(0,200,83,0.6)",
+                            ]
+                          : [
+                              "0 0 40px rgba(255,23,68,0.6)",
+                              "0 0 80px rgba(255,23,68,1)",
+                              "0 0 40px rgba(255,23,68,0.6)",
+                            ],
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Number.POSITIVE_INFINITY,
+                    }}
+                    className="font-black font-mono tracking-[0.1em] select-none"
+                    style={{
+                      fontSize: "clamp(5rem, 12vw, 9rem)",
+                      lineHeight: 1,
+                      color: signal.direction === "buy" ? "#00c853" : "#ff1744",
+                    }}
+                  >
+                    {signal.direction === "buy" ? "▲ BUY" : "▼ SELL"}
+                  </motion.div>
+
+                  {/* Confidence */}
+                  <div
+                    className="text-2xl font-mono font-bold tracking-widest"
+                    style={{
+                      color:
+                        signal.direction === "buy"
+                          ? "rgba(0,200,83,0.75)"
+                          : "rgba(255,23,68,0.75)",
+                    }}
+                  >
+                    Confiança:{" "}
+                    <span
+                      style={{
+                        color:
+                          signal.direction === "buy" ? "#00e676" : "#ff5252",
+                      }}
+                    >
+                      {signal.confidence}%
+                    </span>
+                  </div>
+
+                  {/* Pulse ring around the whole block */}
+                  <motion.div
+                    animate={{ scale: [1, 1.06, 1], opacity: [0.3, 0.7, 0.3] }}
+                    transition={{
+                      duration: 1,
+                      repeat: Number.POSITIVE_INFINITY,
+                    }}
+                    className="absolute inset-0 rounded-full pointer-events-none"
+                    style={{
+                      border: `2px solid ${signal.direction === "buy" ? "#00c853" : "#ff1744"}`,
+                      borderRadius: "50%",
+                      width: 240,
+                      height: 240,
+                      marginLeft: "auto",
+                      marginRight: "auto",
+                      position: "relative",
+                    }}
+                  />
+
+                  {/* Action label */}
+                  <div
+                    className="text-sm font-mono tracking-[0.25em] font-bold mt-2"
+                    style={{
+                      color:
+                        signal.direction === "buy"
+                          ? "rgba(0,200,83,0.5)"
+                          : "rgba(255,23,68,0.5)",
+                    }}
+                  >
+                    {signal.direction === "buy"
+                      ? "ENTRE NA COMPRA AGORA"
+                      : "ENTRE NA VENDA AGORA"}
+                  </div>
+                </div>
+              ) : null}
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
