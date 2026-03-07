@@ -12,6 +12,8 @@ import type { Principal } from '@icp-sdk/core/principal';
 
 export type Direction = { 'buy' : null } |
   { 'sell' : null };
+export type Result = { 'ok' : null } |
+  { 'err' : string };
 export type Sensitivity = { 'conservative' : null } |
   { 'aggressive' : null } |
   { 'normal' : null };
@@ -45,6 +47,19 @@ export interface _SERVICE {
   'getSettings' : ActorMethod<[], [] | [Settings]>,
   'getSignalById' : ActorMethod<[bigint], [] | [Signal]>,
   'getSignalsByTimeframe' : ActorMethod<[Timeframe], Array<Signal>>,
+  /**
+   * / Check if a user exists.
+   */
+  'hasUser' : ActorMethod<[string], boolean>,
+  /**
+   * / Login by checking username and pinHash.
+   */
+  'loginUser' : ActorMethod<[string, string], Result>,
+  /**
+   * / Register a new user with username and hashed PIN.
+   * / Returns error if username is already taken or invalid.
+   */
+  'registerUser' : ActorMethod<[string, string], Result>,
   'saveSignal' : ActorMethod<
     [Direction, Timeframe, bigint, number, number, number, string],
     undefined

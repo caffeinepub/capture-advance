@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Direction,
+  type Result,
   Sensitivity,
   type Settings,
   type Signal,
@@ -9,7 +10,7 @@ import {
 } from "../backend.d";
 import { useActor } from "./useActor";
 
-export type { Signal, Settings };
+export type { Signal, Settings, Result };
 export { Direction, Timeframe, Sensitivity, SignalOutcome };
 
 export function useGetLastSignals(limit = 5) {
@@ -100,6 +101,38 @@ export function useUpdateSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+}
+
+export function useHasUser(username: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<boolean>({
+    queryKey: ["hasUser", username],
+    queryFn: async () => {
+      if (!actor || !username) return false;
+      return actor.hasUser(username);
+    },
+    enabled: !!actor && !isFetching && username.length > 0,
+  });
+}
+
+export function useRegisterUser() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async (params: { username: string; pinHash: string }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.registerUser(params.username, params.pinHash);
+    },
+  });
+}
+
+export function useLoginUser() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async (params: { username: string; pinHash: string }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.loginUser(params.username, params.pinHash);
     },
   });
 }

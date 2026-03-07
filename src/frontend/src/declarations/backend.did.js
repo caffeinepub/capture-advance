@@ -42,6 +42,7 @@ export const Settings = IDL.Record({
   'signalSensitivity' : Sensitivity,
   'selectedTimeframe' : Timeframe,
 });
+export const Result = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
 
 export const idlService = IDL.Service({
   'getAllSignals' : IDL.Func([], [IDL.Vec(Signal)], ['query']),
@@ -49,6 +50,9 @@ export const idlService = IDL.Service({
   'getSettings' : IDL.Func([], [IDL.Opt(Settings)], ['query']),
   'getSignalById' : IDL.Func([IDL.Nat], [IDL.Opt(Signal)], ['query']),
   'getSignalsByTimeframe' : IDL.Func([Timeframe], [IDL.Vec(Signal)], ['query']),
+  'hasUser' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
+  'loginUser' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
+  'registerUser' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
   'saveSignal' : IDL.Func(
       [
         Direction,
@@ -100,6 +104,7 @@ export const idlFactory = ({ IDL }) => {
     'signalSensitivity' : Sensitivity,
     'selectedTimeframe' : Timeframe,
   });
+  const Result = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
   
   return IDL.Service({
     'getAllSignals' : IDL.Func([], [IDL.Vec(Signal)], ['query']),
@@ -111,6 +116,9 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Signal)],
         ['query'],
       ),
+    'hasUser' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
+    'loginUser' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
+    'registerUser' : IDL.Func([IDL.Text, IDL.Text], [Result], []),
     'saveSignal' : IDL.Func(
         [
           Direction,

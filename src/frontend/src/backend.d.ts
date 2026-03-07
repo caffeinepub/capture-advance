@@ -23,6 +23,13 @@ export interface Settings {
     signalSensitivity: Sensitivity;
     selectedTimeframe: Timeframe;
 }
+export type Result = {
+    __kind__: "ok";
+    ok: null;
+} | {
+    __kind__: "err";
+    err: string;
+};
 export enum Direction {
     buy = "buy",
     sell = "sell"
@@ -50,6 +57,19 @@ export interface backendInterface {
     getSettings(): Promise<Settings | null>;
     getSignalById(signalId: bigint): Promise<Signal | null>;
     getSignalsByTimeframe(timeframe: Timeframe): Promise<Array<Signal>>;
+    /**
+     * / Check if a user exists.
+     */
+    hasUser(username: string): Promise<boolean>;
+    /**
+     * / Login by checking username and pinHash.
+     */
+    loginUser(username: string, pinHash: string): Promise<Result>;
+    /**
+     * / Register a new user with username and hashed PIN.
+     * / Returns error if username is already taken or invalid.
+     */
+    registerUser(username: string, pinHash: string): Promise<Result>;
     saveSignal(direction: Direction, timeframe: Timeframe, confidenceScore: bigint, ema9: number, ema21: number, rsi: number, candlePattern: string): Promise<void>;
     saveSignalOutcome(signalId: bigint, outcome: SignalOutcome): Promise<void>;
     updateSettings(selectedTimeframe: Timeframe, signalSensitivity: Sensitivity): Promise<void>;

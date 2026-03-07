@@ -19,6 +19,11 @@ export type CandlePattern =
   | "Doji"
   | "Hammer"
   | "Shooting Star"
+  | "Morning Star"
+  | "Evening Star"
+  | "Three White Soldiers"
+  | "Three Black Crows"
+  | "Inside Bar"
   | "Neutral";
 
 /** Calculate EMA for a series of close prices */
@@ -66,7 +71,7 @@ export function calcRSI(closes: number[], period = 14): number[] {
   return result;
 }
 
-/** Detect candle pattern from last 2 candles */
+/** Detect candle pattern from last 5 candles */
 export function detectPattern(candles: Candle[]): CandlePattern {
   if (candles.length < 2) return "Neutral";
   const curr = candles[candles.length - 1];
@@ -76,7 +81,6 @@ export function detectPattern(candles: Candle[]): CandlePattern {
   const currBody = Math.abs(curr.close - curr.open);
   const prevBody = Math.abs(prev.close - prev.open);
   const currRange = curr.high - curr.low;
-  const _prevRange = prev.high - prev.low;
 
   // Doji: tiny body relative to range
   if (currRange > 0 && currBody / currRange < 0.1) return "Doji";
@@ -110,6 +114,63 @@ export function detectPattern(candles: Candle[]): CandlePattern {
     currBody > prevBody
   )
     return "Bearish Engulfing";
+
+  // Inside Bar: current high/low completely within previous range
+  if (curr.high < prev.high && curr.low > prev.low) return "Inside Bar";
+
+  // 3-candle patterns
+  if (candles.length >= 3) {
+    const c1 = candles[candles.length - 3];
+    const c2 = candles[candles.length - 2];
+    const c3 = candles[candles.length - 1];
+
+    const c1Body = Math.abs(c1.close - c1.open);
+    const c2Body = Math.abs(c2.close - c2.open);
+    const c1Midpoint = (c1.open + c1.close) / 2;
+
+    // Morning Star: bearish + doji/small body + bullish closing above midpoint of first
+    const isSmallBody2 = c2Body < c1Body * 0.4;
+    if (
+      c1.close < c1.open && // c1 bearish
+      isSmallBody2 && // c2 small body (doji-like)
+      c3.close > c3.open && // c3 bullish
+      c3.close > c1Midpoint // c3 closes above midpoint of c1
+    )
+      return "Morning Star";
+
+    // Evening Star: bullish + doji/small body + bearish closing below midpoint of first
+    if (
+      c1.close > c1.open && // c1 bullish
+      isSmallBody2 && // c2 small body
+      c3.close < c3.open && // c3 bearish
+      c3.close < c1Midpoint // c3 closes below midpoint of c1
+    )
+      return "Evening Star";
+
+    // Three White Soldiers: 3 consecutive bullish with higher highs
+    if (
+      c1.close > c1.open &&
+      c2.close > c2.open &&
+      c3.close > c3.open &&
+      c2.close > c1.close &&
+      c3.close > c2.close &&
+      c2.high > c1.high &&
+      c3.high > c2.high
+    )
+      return "Three White Soldiers";
+
+    // Three Black Crows: 3 consecutive bearish with lower lows
+    if (
+      c1.close < c1.open &&
+      c2.close < c2.open &&
+      c3.close < c3.open &&
+      c2.close < c1.close &&
+      c3.close < c2.close &&
+      c2.low < c1.low &&
+      c3.low < c2.low
+    )
+      return "Three Black Crows";
+  }
 
   return "Neutral";
 }
@@ -244,10 +305,16 @@ export function computeSignal(
     score -= 35; // overbought
   else if (rsi > 60) score -= 15;
 
-  // Candle pattern
-  if (pattern === "Bullish Engulfing" || pattern === "Hammer") score += 25;
+  // Candle pattern — multi-candle patterns get higher weight (+/-35)
+  if (pattern === "Three White Soldiers" || pattern === "Morning Star")
+    score += 35;
+  else if (pattern === "Three Black Crows" || pattern === "Evening Star")
+    score -= 35;
+  else if (pattern === "Bullish Engulfing" || pattern === "Hammer") score += 25;
   else if (pattern === "Bearish Engulfing" || pattern === "Shooting Star")
     score -= 25;
+  else if (pattern === "Inside Bar")
+    score = score * 0.85; // slight indecision
   else if (pattern === "Doji") score = score * 0.7; // uncertainty
 
   // Sensitivity adjustment

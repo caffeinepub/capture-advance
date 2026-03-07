@@ -2,7 +2,10 @@ import {
   Brain,
   Check,
   ExternalLink,
+  LogOut,
+  Moon,
   Pencil,
+  Sun,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -10,6 +13,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CountdownPanel } from "./components/CountdownPanel";
+import { LoginScreen } from "./components/LoginScreen";
 import { ScreenCaptureButton } from "./components/ScreenCapture";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SignalHistory } from "./components/SignalHistory";
@@ -26,6 +30,7 @@ import {
   useSaveSignal,
   useUpdateSettings,
 } from "./hooks/useQueries";
+import { useTheme } from "./hooks/useTheme";
 import {
   fetchBinanceCandles,
   fetchTickerInfo,
@@ -74,6 +79,50 @@ function getTickIntervalMs(tf: Timeframe): number {
 }
 
 export default function App() {
+  const [authUser, setAuthUser] = useState<string | null>(() =>
+    localStorage.getItem("ca_auth_user"),
+  );
+  const [theme, toggleTheme] = useTheme();
+
+  if (!authUser) {
+    return (
+      <>
+        <Toaster position="top-right" />
+        <LoginScreen
+          theme={theme}
+          onSuccess={(username) => {
+            localStorage.setItem("ca_auth_user", username);
+            setAuthUser(username);
+          }}
+        />
+      </>
+    );
+  }
+
+  return (
+    <AppInner
+      authUser={authUser}
+      theme={theme}
+      toggleTheme={toggleTheme}
+      onLogout={() => {
+        localStorage.removeItem("ca_auth_user");
+        setAuthUser(null);
+      }}
+    />
+  );
+}
+
+function AppInner({
+  authUser,
+  onLogout,
+  theme,
+  toggleTheme,
+}: {
+  authUser: string;
+  onLogout: () => void;
+  theme: "dark" | "light";
+  toggleTheme: () => void;
+}) {
   const [timeframe, setTimeframe] = useState<Timeframe>(Timeframe.m1);
   const [candles, setCandles] = useState<Candle[]>(() =>
     generateHistoricalCandles(1, 120, 4500),
@@ -114,6 +163,7 @@ export default function App() {
   const videoBackgroundRef = useRef<HTMLVideoElement>(null);
   const captureFrameRef = useRef<(() => string | null) | null>(null);
   const geminiAnalyzeRef = useRef<((dataUrl: string) => void) | null>(null);
+  const voiceFiredRef = useRef(false);
 
   // Detect when window is hidden (minimized, other tab, etc.)
   useEffect(() => {
@@ -178,6 +228,25 @@ export default function App() {
 
   const saveSignalMutate = saveSignalMutation.mutate;
 
+  /** Speak BUY or SELL signal in Portuguese using Web Speech API */
+  const speakSignal = useCallback((direction: "buy" | "sell") => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const text = direction === "buy" ? "COMPRAR" : "VENDER";
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "pt-BR";
+    utter.rate = 0.9;
+    utter.pitch = 1.1;
+    utter.volume = 1;
+    // Try to pick a Portuguese voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const ptVoice = voices.find(
+      (v) => v.lang.startsWith("pt") || v.lang.startsWith("pt-BR"),
+    );
+    if (ptVoice) utter.voice = ptVoice;
+    window.speechSynthesis.speak(utter);
+  }, []);
+
   useEffect(() => {
     if (!signal) return;
     saveSignalMutate({
@@ -199,7 +268,12 @@ export default function App() {
         backdropFilter: "blur(12px)",
       },
     });
-  }, [signal, timeframe, saveSignalMutate]);
+    // Speak the signal if voice hasn't fired yet in this signal window
+    if (!voiceFiredRef.current) {
+      voiceFiredRef.current = true;
+      speakSignal(signal.direction);
+    }
+  }, [signal, timeframe, saveSignalMutate, speakSignal]);
 
   useEffect(() => {
     if (tickRef.current) clearInterval(tickRef.current);
@@ -369,6 +443,7 @@ export default function App() {
 
       if (secs > 20) {
         signalFiredRef.current = false;
+        voiceFiredRef.current = false;
       }
 
       prevCountdownRef.current = secs;
@@ -446,7 +521,7 @@ export default function App() {
                     },
                   },
                   {
-                    text: "Você é um analista de trading. Observe esta imagem de gráfico de candlestick e identifique SOMENTE os últimos padrões de candle visíveis na parte direita/mais recente do gráfico. Liste apenas os nomes dos padrões detectados (ex: Doji, Engulfing de Alta, Hammer, Shooting Star, Pin Bar, Inside Bar, etc.) e para cada um informe: nome do padrão e sinal (COMPRA ou VENDA). Seja extremamente conciso — máximo 3 padrões. NÃO mencione RSI, EMA, médias móveis, suporte, resistência nem qualquer outro indicador. Apenas os últimos padrões de candle visíveis. Se identificar o par de moedas, inclua na última linha no formato PAR: XXX/YYY.",
+                    text: "Você é um analista de trading especialista. Analise os ÚLTIMOS 5 CANDLES visíveis na parte direita do gráfico. Para cada padrão identificado informe: nome do padrão e direção (COMPRA ou VENDA). Considere padrões de 2 a 5 candles como Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Engulfing, Doji, Hammer, Shooting Star, Inside Bar. Seja conciso — máximo 3 padrões dos últimos 5 candles. NÃO mencione RSI, EMA, médias móveis. Se identificar o par de moedas, inclua na última linha: PAR: XXX/YYY.",
                   },
                 ],
               },
@@ -646,6 +721,25 @@ export default function App() {
     toast.success("Configurações salvas");
   }
 
+  function handleClearScreen() {
+    setCaptureDataUrl(null);
+    setGeminiAnalysis(null);
+    setIsGeminiAnalyzing(false);
+    setSignal(null);
+    if (liveStream) {
+      for (const t of liveStream.getTracks()) t.stop();
+      setLiveStream(null);
+    }
+    toast.success("Tela limpa!", {
+      style: {
+        background: "rgba(8,8,16,0.95)",
+        border: "1px solid rgba(0,200,83,0.3)",
+        color: "#00c853",
+        backdropFilter: "blur(12px)",
+      },
+    });
+  }
+
   function handleMarkOutcome(signalId: bigint, outcome: SignalOutcome) {
     saveOutcomeMutation.mutate({ signalId, outcome });
     toast.success(
@@ -674,10 +768,12 @@ export default function App() {
   const change = openPrice > 0 ? lastPrice - openPrice : 0;
   const changePercent = openPrice > 0 ? (change / openPrice) * 100 : 0;
 
+  const isLight = theme === "light";
+
   return (
     <div
       className={`w-full h-screen flex overflow-hidden ${isPopup ? "items-stretch justify-center" : "items-center justify-start"}`}
-      style={{ background: "#080810" }}
+      style={{ background: isLight ? "#f0f4f0" : "#080810" }}
     >
       <Toaster position="top-right" />
 
@@ -702,8 +798,9 @@ export default function App() {
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
-          backgroundImage:
-            "linear-gradient(rgba(0,200,83,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,83,0.015) 1px, transparent 1px)",
+          backgroundImage: isLight
+            ? "linear-gradient(rgba(0,200,83,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,83,0.04) 1px, transparent 1px)"
+            : "linear-gradient(rgba(0,200,83,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,83,0.015) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
           zIndex: 0,
         }}
@@ -828,7 +925,10 @@ export default function App() {
         />
 
         {/* Glass background */}
-        <div className="absolute inset-0 glass-overlay" style={{ zIndex: 1 }} />
+        <div
+          className={`absolute inset-0 ${isLight ? "glass-overlay-light" : "glass-overlay"}`}
+          style={{ zIndex: 1 }}
+        />
 
         {/* Content */}
         <div
@@ -839,8 +939,12 @@ export default function App() {
           <header
             className="flex items-center justify-between px-3 py-2 flex-shrink-0"
             style={{
-              background: "rgba(0,200,83,0.06)",
-              borderBottom: "1px solid rgba(0,200,83,0.18)",
+              background: isLight
+                ? "rgba(0,200,83,0.08)"
+                : "rgba(0,200,83,0.06)",
+              borderBottom: isLight
+                ? "1px solid rgba(0,200,83,0.22)"
+                : "1px solid rgba(0,200,83,0.18)",
             }}
           >
             {/* Logo */}
@@ -858,11 +962,20 @@ export default function App() {
               <div>
                 <div
                   className="text-xs font-black font-mono tracking-wider"
-                  style={{ color: "rgba(255,255,255,0.9)" }}
+                  style={{
+                    color: isLight ? "#1a1a1a" : "rgba(255,255,255,0.9)",
+                  }}
                 >
                   CAPTURE <span style={{ color: "#00c853" }}>ADVANCE</span>
                 </div>
-                <div className="text-[8px] font-mono text-white/25 tracking-widest">
+                <div
+                  className="text-[8px] font-mono tracking-widest"
+                  style={{
+                    color: isLight
+                      ? "rgba(0,0,0,0.35)"
+                      : "rgba(255,255,255,0.25)",
+                  }}
+                >
                   AI SIGNAL ANALYZER
                 </div>
               </div>
@@ -966,7 +1079,58 @@ export default function App() {
                 timeframe={timeframe}
                 onSensitivityChange={handleSensitivityChange}
                 onSave={handleSaveSettings}
+                onClearScreen={handleClearScreen}
+                theme={theme}
               />
+
+              {/* Theme toggle */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                title={isLight ? "Modo escuro" : "Modo claro"}
+                className="flex items-center justify-center w-6 h-6 rounded transition-all hover:opacity-80"
+                style={{
+                  background: isLight
+                    ? "rgba(0,0,0,0.07)"
+                    : "rgba(255,255,255,0.07)",
+                  border: isLight
+                    ? "1px solid rgba(0,0,0,0.12)"
+                    : "1px solid rgba(255,255,255,0.1)",
+                  color: isLight ? "#1a1a1a" : "rgba(255,255,255,0.5)",
+                }}
+                data-ocid="header.theme_toggle"
+              >
+                {isLight ? <Moon size={11} /> : <Sun size={11} />}
+              </button>
+
+              {/* Logged-in user + logout */}
+              <div className="flex items-center gap-1">
+                <span
+                  className="text-[8px] font-mono font-semibold max-w-[56px] truncate"
+                  style={{
+                    color: isLight
+                      ? "rgba(0,0,0,0.4)"
+                      : "rgba(255,255,255,0.25)",
+                  }}
+                  title={authUser}
+                >
+                  {authUser}
+                </span>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  title="Sair"
+                  className="flex items-center justify-center w-5 h-5 rounded transition-opacity hover:opacity-80"
+                  style={{
+                    color: isLight
+                      ? "rgba(0,0,0,0.35)"
+                      : "rgba(255,255,255,0.25)",
+                  }}
+                  data-ocid="header.logout_button"
+                >
+                  <LogOut size={10} />
+                </button>
+              </div>
             </div>
           </header>
 
@@ -974,8 +1138,10 @@ export default function App() {
           <div
             className="flex flex-col flex-shrink-0"
             style={{
-              background: "rgba(0,0,0,0.25)",
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
+              background: isLight ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.25)",
+              borderBottom: isLight
+                ? "1px solid rgba(0,0,0,0.08)"
+                : "1px solid rgba(255,255,255,0.05)",
             }}
           >
             <div className="flex items-center gap-1 px-3 pt-1.5 pb-1">
@@ -986,11 +1152,18 @@ export default function App() {
                   onClick={() => handleTimeframeChange(key)}
                   className="flex-1 py-1 rounded text-[10px] font-mono font-bold transition-all"
                   style={{
-                    color: timeframe === key ? "#000" : "rgba(255,255,255,0.3)",
+                    color:
+                      timeframe === key
+                        ? "#000"
+                        : isLight
+                          ? "rgba(0,0,0,0.4)"
+                          : "rgba(255,255,255,0.3)",
                     background:
                       timeframe === key
                         ? "linear-gradient(135deg, #00c853, #00e676)"
-                        : "rgba(255,255,255,0.04)",
+                        : isLight
+                          ? "rgba(0,0,0,0.05)"
+                          : "rgba(255,255,255,0.04)",
                     boxShadow:
                       timeframe === key
                         ? "0 0 10px rgba(0,200,83,0.5)"
@@ -998,7 +1171,9 @@ export default function App() {
                     border:
                       timeframe === key
                         ? "none"
-                        : "1px solid rgba(255,255,255,0.06)",
+                        : isLight
+                          ? "1px solid rgba(0,0,0,0.08)"
+                          : "1px solid rgba(255,255,255,0.06)",
                   }}
                   data-ocid={`timeframe.tab.${i + 1}`}
                 >
@@ -1083,18 +1258,34 @@ export default function App() {
           <div
             className="flex items-center justify-between px-3 py-1.5 flex-shrink-0"
             style={{
-              background: "rgba(0,0,0,0.3)",
-              borderBottom: "1px solid rgba(255,255,255,0.04)",
+              background: isLight ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.3)",
+              borderBottom: isLight
+                ? "1px solid rgba(0,0,0,0.07)"
+                : "1px solid rgba(255,255,255,0.04)",
             }}
           >
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-mono text-white/25">BID</span>
+              <span
+                className="text-[9px] font-mono"
+                style={{
+                  color: isLight
+                    ? "rgba(0,0,0,0.35)"
+                    : "rgba(255,255,255,0.25)",
+                }}
+              >
+                BID
+              </span>
               <span className="text-[11px] font-mono font-bold text-[#00c853]">
                 {formatPrice(bid, currencyPair)}
               </span>
             </div>
             <div className="text-center">
-              <div className="text-[12px] font-black font-mono text-white/80">
+              <div
+                className="text-[12px] font-black font-mono"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.8)",
+                }}
+              >
                 {formatPrice(lastPrice, currencyPair)}
               </div>
               <div
@@ -1106,7 +1297,16 @@ export default function App() {
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-mono text-white/25">ASK</span>
+              <span
+                className="text-[9px] font-mono"
+                style={{
+                  color: isLight
+                    ? "rgba(0,0,0,0.35)"
+                    : "rgba(255,255,255,0.25)",
+                }}
+              >
+                ASK
+              </span>
               <span className="text-[11px] font-mono font-bold text-[#ff1744]">
                 {formatPrice(ask, currencyPair)}
               </span>
@@ -1119,6 +1319,7 @@ export default function App() {
               seconds={countdown}
               timeframe={timeframe}
               isSignalWindow={isSignalWindow}
+              theme={theme}
             />
 
             <SignalPanel
@@ -1146,12 +1347,14 @@ export default function App() {
               liveStream={liveStream}
               lastOutcome={lastOutcome}
               hasCapture={!!(liveStream || captureDataUrl)}
+              theme={theme}
             />
 
             <SignalHistory
               signals={savedSignals}
               isLoading={signalsLoading}
               onMarkOutcome={handleMarkOutcome}
+              theme={theme}
             />
           </div>
 
@@ -1160,16 +1363,24 @@ export default function App() {
             className="flex items-center justify-center py-1 flex-shrink-0"
             style={{
               borderTop: "1px solid rgba(0,200,83,0.1)",
-              background: "rgba(0,0,0,0.4)",
+              background: isLight ? "rgba(0,0,0,0.05)" : "rgba(0,0,0,0.4)",
             }}
           >
-            <span className="text-[8px] font-mono text-white/15">
+            <span
+              className="text-[8px] font-mono"
+              style={{
+                color: isLight ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.15)",
+              }}
+            >
               © {new Date().getFullYear()}{" "}
               <a
                 href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-white/20 hover:text-white/35 transition-colors"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.2)",
+                }}
+                className="hover:opacity-70 transition-opacity"
               >
                 caffeine.ai
               </a>

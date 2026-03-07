@@ -105,6 +105,13 @@ export interface Settings {
     signalSensitivity: Sensitivity;
     selectedTimeframe: Timeframe;
 }
+export type Result = {
+    __kind__: "ok";
+    ok: null;
+} | {
+    __kind__: "err";
+    err: string;
+};
 export enum Direction {
     buy = "buy",
     sell = "sell"
@@ -132,11 +139,24 @@ export interface backendInterface {
     getSettings(): Promise<Settings | null>;
     getSignalById(signalId: bigint): Promise<Signal | null>;
     getSignalsByTimeframe(timeframe: Timeframe): Promise<Array<Signal>>;
+    /**
+     * / Check if a user exists.
+     */
+    hasUser(username: string): Promise<boolean>;
+    /**
+     * / Login by checking username and pinHash.
+     */
+    loginUser(username: string, pinHash: string): Promise<Result>;
+    /**
+     * / Register a new user with username and hashed PIN.
+     * / Returns error if username is already taken or invalid.
+     */
+    registerUser(username: string, pinHash: string): Promise<Result>;
     saveSignal(direction: Direction, timeframe: Timeframe, confidenceScore: bigint, ema9: number, ema21: number, rsi: number, candlePattern: string): Promise<void>;
     saveSignalOutcome(signalId: bigint, outcome: SignalOutcome): Promise<void>;
     updateSettings(selectedTimeframe: Timeframe, signalSensitivity: Sensitivity): Promise<void>;
 }
-import type { Direction as _Direction, Sensitivity as _Sensitivity, Settings as _Settings, Signal as _Signal, SignalOutcome as _SignalOutcome, Timeframe as _Timeframe } from "./declarations/backend.did.d.ts";
+import type { Direction as _Direction, Result as _Result, Sensitivity as _Sensitivity, Settings as _Settings, Signal as _Signal, SignalOutcome as _SignalOutcome, Timeframe as _Timeframe } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async getAllSignals(): Promise<Array<Signal>> {
@@ -209,51 +229,96 @@ export class Backend implements backendInterface {
             return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
         }
     }
-    async saveSignal(arg0: Direction, arg1: Timeframe, arg2: bigint, arg3: number, arg4: number, arg5: number, arg6: string): Promise<void> {
+    async hasUser(arg0: string): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.saveSignal(to_candid_Direction_n19(this._uploadFile, this._downloadFile, arg0), to_candid_Timeframe_n17(this._uploadFile, this._downloadFile, arg1), arg2, arg3, arg4, arg5, arg6);
+                const result = await this.actor.hasUser(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.saveSignal(to_candid_Direction_n19(this._uploadFile, this._downloadFile, arg0), to_candid_Timeframe_n17(this._uploadFile, this._downloadFile, arg1), arg2, arg3, arg4, arg5, arg6);
+            const result = await this.actor.hasUser(arg0);
+            return result;
+        }
+    }
+    async loginUser(arg0: string, arg1: string): Promise<Result> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.loginUser(arg0, arg1);
+                return from_candid_Result_n19(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.loginUser(arg0, arg1);
+            return from_candid_Result_n19(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async registerUser(arg0: string, arg1: string): Promise<Result> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.registerUser(arg0, arg1);
+                return from_candid_Result_n19(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.registerUser(arg0, arg1);
+            return from_candid_Result_n19(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async saveSignal(arg0: Direction, arg1: Timeframe, arg2: bigint, arg3: number, arg4: number, arg5: number, arg6: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveSignal(to_candid_Direction_n21(this._uploadFile, this._downloadFile, arg0), to_candid_Timeframe_n17(this._uploadFile, this._downloadFile, arg1), arg2, arg3, arg4, arg5, arg6);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveSignal(to_candid_Direction_n21(this._uploadFile, this._downloadFile, arg0), to_candid_Timeframe_n17(this._uploadFile, this._downloadFile, arg1), arg2, arg3, arg4, arg5, arg6);
             return result;
         }
     }
     async saveSignalOutcome(arg0: bigint, arg1: SignalOutcome): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.saveSignalOutcome(arg0, to_candid_SignalOutcome_n21(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.saveSignalOutcome(arg0, to_candid_SignalOutcome_n23(this._uploadFile, this._downloadFile, arg1));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.saveSignalOutcome(arg0, to_candid_SignalOutcome_n21(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.saveSignalOutcome(arg0, to_candid_SignalOutcome_n23(this._uploadFile, this._downloadFile, arg1));
             return result;
         }
     }
     async updateSettings(arg0: Timeframe, arg1: Sensitivity): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateSettings(to_candid_Timeframe_n17(this._uploadFile, this._downloadFile, arg0), to_candid_Sensitivity_n23(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.updateSettings(to_candid_Timeframe_n17(this._uploadFile, this._downloadFile, arg0), to_candid_Sensitivity_n25(this._uploadFile, this._downloadFile, arg1));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateSettings(to_candid_Timeframe_n17(this._uploadFile, this._downloadFile, arg0), to_candid_Sensitivity_n23(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.updateSettings(to_candid_Timeframe_n17(this._uploadFile, this._downloadFile, arg0), to_candid_Sensitivity_n25(this._uploadFile, this._downloadFile, arg1));
             return result;
         }
     }
 }
 function from_candid_Direction_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Direction): Direction {
     return from_candid_variant_n5(_uploadFile, _downloadFile, value);
+}
+function from_candid_Result_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Result): Result {
+    return from_candid_variant_n20(_uploadFile, _downloadFile, value);
 }
 function from_candid_Sensitivity_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Sensitivity): Sensitivity {
     return from_candid_variant_n15(_uploadFile, _downloadFile, value);
@@ -343,6 +408,25 @@ function from_candid_variant_n15(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): Sensitivity {
     return "conservative" in value ? Sensitivity.conservative : "aggressive" in value ? Sensitivity.aggressive : "normal" in value ? Sensitivity.normal : value;
 }
+function from_candid_variant_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    ok: null;
+} | {
+    err: string;
+}): {
+    __kind__: "ok";
+    ok: null;
+} | {
+    __kind__: "err";
+    err: string;
+} {
+    return "ok" in value ? {
+        __kind__: "ok",
+        ok: value.ok
+    } : "err" in value ? {
+        __kind__: "err",
+        err: value.err
+    } : value;
+}
 function from_candid_variant_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     buy: null;
 } | {
@@ -368,14 +452,14 @@ function from_candid_variant_n7(_uploadFile: (file: ExternalBlob) => Promise<Uin
 function from_candid_vec_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Signal>): Array<Signal> {
     return value.map((x)=>from_candid_Signal_n2(_uploadFile, _downloadFile, x));
 }
-function to_candid_Direction_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Direction): _Direction {
-    return to_candid_variant_n20(_uploadFile, _downloadFile, value);
-}
-function to_candid_Sensitivity_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Sensitivity): _Sensitivity {
-    return to_candid_variant_n24(_uploadFile, _downloadFile, value);
-}
-function to_candid_SignalOutcome_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: SignalOutcome): _SignalOutcome {
+function to_candid_Direction_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Direction): _Direction {
     return to_candid_variant_n22(_uploadFile, _downloadFile, value);
+}
+function to_candid_Sensitivity_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Sensitivity): _Sensitivity {
+    return to_candid_variant_n26(_uploadFile, _downloadFile, value);
+}
+function to_candid_SignalOutcome_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: SignalOutcome): _SignalOutcome {
+    return to_candid_variant_n24(_uploadFile, _downloadFile, value);
 }
 function to_candid_Timeframe_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Timeframe): _Timeframe {
     return to_candid_variant_n18(_uploadFile, _downloadFile, value);
@@ -407,7 +491,7 @@ function to_candid_variant_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint
         m15: null
     } : value;
 }
-function to_candid_variant_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Direction): {
+function to_candid_variant_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Direction): {
     buy: null;
 } | {
     sell: null;
@@ -418,7 +502,7 @@ function to_candid_variant_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint
         sell: null
     } : value;
 }
-function to_candid_variant_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: SignalOutcome): {
+function to_candid_variant_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: SignalOutcome): {
     win: null;
 } | {
     loss: null;
@@ -429,7 +513,7 @@ function to_candid_variant_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint
         loss: null
     } : value;
 }
-function to_candid_variant_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Sensitivity): {
+function to_candid_variant_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Sensitivity): {
     conservative: null;
 } | {
     aggressive: null;

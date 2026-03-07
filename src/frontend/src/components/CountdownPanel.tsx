@@ -5,6 +5,7 @@ interface CountdownPanelProps {
   seconds: number;
   timeframe: string;
   isSignalWindow: boolean;
+  theme?: "dark" | "light";
 }
 
 function formatTime(seconds: number): string {
@@ -20,7 +21,9 @@ export function CountdownPanel({
   seconds,
   timeframe,
   isSignalWindow,
+  theme = "dark",
 }: CountdownPanelProps) {
+  const isLight = theme === "light";
   const progress = (() => {
     const total = (() => {
       switch (timeframe) {
@@ -51,14 +54,26 @@ export function CountdownPanel({
       data-ocid="countdown.panel"
       className="rounded-lg p-3 flex flex-col items-center gap-2"
       style={{
-        background: "rgba(5,5,12,0.7)",
-        border: "1px solid rgba(0,200,83,0.12)",
+        background: isLight ? "rgba(255,255,255,0.88)" : "rgba(5,5,12,0.7)",
+        border: isLight
+          ? "1px solid rgba(0,200,83,0.15)"
+          : "1px solid rgba(0,200,83,0.12)",
         backdropFilter: "blur(8px)",
       }}
     >
       <div className="flex items-center gap-2 w-full">
-        <Clock size={12} className="text-white/30" />
-        <span className="text-[10px] font-mono text-white/30 tracking-widest">
+        <Clock
+          size={12}
+          style={{
+            color: isLight ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.3)",
+          }}
+        />
+        <span
+          className="text-[10px] font-mono tracking-widest"
+          style={{
+            color: isLight ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.3)",
+          }}
+        >
           PRÓXIMA VELA
         </span>
         {isSignalWindow && (
@@ -89,7 +104,7 @@ export function CountdownPanel({
               cy="25"
               r="22"
               fill="none"
-              stroke="rgba(255,255,255,0.07)"
+              stroke={isLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.07)"}
               strokeWidth="3"
             />
             {/* Progress */}
@@ -115,7 +130,16 @@ export function CountdownPanel({
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             <motion.span
-              className={`text-sm font-black font-mono ${isSignalWindow ? "countdown-urgent" : seconds <= 10 ? "text-[#ff1744]" : "text-white/80"}`}
+              className={`text-sm font-black font-mono ${isSignalWindow ? "countdown-urgent" : seconds <= 10 ? "text-[#ff1744]" : ""}`}
+              style={
+                !isSignalWindow && seconds > 10
+                  ? {
+                      color: isLight
+                        ? "rgba(0,0,0,0.7)"
+                        : "rgba(255,255,255,0.8)",
+                    }
+                  : undefined
+              }
               animate={isSignalWindow ? { scale: [1, 1.08, 1] } : {}}
               transition={{ duration: 0.5, repeat: Number.POSITIVE_INFINITY }}
             >
@@ -126,15 +150,34 @@ export function CountdownPanel({
 
         {/* Text */}
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-mono text-white/30">Em</span>
+          <span
+            className="text-[10px] font-mono"
+            style={{
+              color: isLight ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.3)",
+            }}
+          >
+            Em
+          </span>
           <motion.span
-            className={`text-2xl font-black font-mono ${isSignalWindow ? "text-[#ffd600]" : seconds <= 10 ? "text-[#ff1744]" : "text-white"}`}
+            className={`text-2xl font-black font-mono ${isSignalWindow ? "text-[#ffd600]" : seconds <= 10 ? "text-[#ff1744]" : ""}`}
+            style={
+              !isSignalWindow && seconds > 10
+                ? { color: isLight ? "#1a1a1a" : "white" }
+                : undefined
+            }
             animate={seconds <= 10 ? { scale: [1, 1.05, 1] } : {}}
             transition={{ duration: 0.5, repeat: Number.POSITIVE_INFINITY }}
           >
             {formatTime(seconds)}
           </motion.span>
-          <span className="text-[10px] font-mono text-white/30">segundos</span>
+          <span
+            className="text-[10px] font-mono"
+            style={{
+              color: isLight ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.3)",
+            }}
+          >
+            segundos
+          </span>
         </div>
       </div>
     </div>

@@ -6,9 +6,16 @@ import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Nat "mo:core/Nat";
 import Iter "mo:core/Iter";
-import List "mo:core/List";
+
+
 
 actor {
+  // Custom Result type
+  type Result<Ok, Err> = {
+    #ok : Ok;
+    #err : Err;
+  };
+
   // Types
   type Direction = { #buy; #sell };
   type Timeframe = { #m1; #m5; #m15; #h1; #d1; #w1 };
@@ -74,13 +81,70 @@ actor {
     };
   };
 
-  // Storage
+  // User definition and checks
+  type User = {
+    username : Text;
+    pinHash : Text;
+    createdAt : Int;
+  };
+
+  module User {
+    public func compare(user1 : User, user2 : User) : Order.Order {
+      Text.compare(user1.username, user2.username);
+    };
+  };
+
+  // Storage for signals and users
   let signals = Map.empty<Nat, Signal>();
   var signalIdCounter = 0;
 
   var userSettings : ?Settings = null;
 
-  // Public functions
+  let users = Map.empty<Text, User>();
+
+  // Authentication functions
+
+  /// Register a new user with username and hashed PIN.
+  /// Returns error if username is already taken or invalid.
+  public shared ({ caller }) func registerUser(username : Text, pinHash : Text) : async Result<(), Text> {
+    if (username.size() < 3) {
+      return #err("Username must be at least 3 characters long");
+    };
+
+    switch (users.get(username)) {
+      case (?_) { #err("Username already exists") };
+      case (null) {
+        let newUser : User = {
+          username;
+          pinHash;
+          createdAt = Time.now();
+        };
+        users.add(username, newUser);
+        #ok(());
+      };
+    };
+  };
+
+  /// Login by checking username and pinHash.
+  public shared ({ caller }) func loginUser(username : Text, pinHash : Text) : async Result<(), Text> {
+    switch (users.get(username)) {
+      case (null) { #err("Username not found") };
+      case (?user) {
+        if (user.pinHash == pinHash) {
+          #ok(());
+        } else {
+          #err("Incorrect PIN");
+        };
+      };
+    };
+  };
+
+  /// Check if a user exists.
+  public query ({ caller }) func hasUser(username : Text) : async Bool {
+    users.containsKey(username);
+  };
+
+  // Public functions for trading signals
 
   // Saving a new signal (all transient computation must be on the frontend)
   public shared ({ caller }) func saveSignal(
@@ -90,7 +154,7 @@ actor {
     ema9 : Float,
     ema21 : Float,
     rsi : Float,
-    candlePattern : Text
+    candlePattern : Text,
   ) : async () {
     if (confidenceScore > 100) { Runtime.trap("Confidence score must be between 0 and 100") };
 
@@ -142,8 +206,7 @@ actor {
       [];
     } else {
       let start = if (len > limit) { len - limit } else { 0 };
-      let resultArray = Array.tabulate(limit, func(i) { allSignals[i + start] });
-      resultArray;
+      Array.tabulate(limit, func(i) { allSignals[i + start] });
     };
   };
 

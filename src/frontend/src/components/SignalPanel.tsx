@@ -33,6 +33,7 @@ interface SignalPanelProps {
   lastOutcome?: "win" | "loss" | null;
   /** whether a screen capture / live stream is currently active */
   hasCapture?: boolean;
+  theme?: "dark" | "light";
 }
 
 function AnimatedDots() {
@@ -44,7 +45,10 @@ function AnimatedDots() {
   return <span>{".".repeat(count + 1)}</span>;
 }
 
-function RSIBar({ value }: { value: number }) {
+function RSIBar({
+  value,
+  isLight = false,
+}: { value: number; isLight?: boolean }) {
   const color =
     value < 30
       ? "#00c853"
@@ -69,20 +73,38 @@ function RSIBar({ value }: { value: number }) {
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between items-center">
-        <span className="text-[11px] font-mono text-white/40">RSI (14)</span>
+        <span
+          className="text-[11px] font-mono"
+          style={{
+            color: isLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)",
+          }}
+        >
+          RSI (14)
+        </span>
         <span className="text-[11px] font-mono font-semibold" style={{ color }}>
           {value.toFixed(1)} · {label}
         </span>
       </div>
-      <div className="h-2 rounded-full bg-white/10 overflow-hidden relative">
+      <div
+        className="h-2 rounded-full overflow-hidden relative"
+        style={{
+          background: isLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
+        }}
+      >
         {/* Zone markers */}
         <div
-          className="absolute top-0 bottom-0 w-px bg-white/20"
-          style={{ left: "30%" }}
+          className="absolute top-0 bottom-0 w-px"
+          style={{
+            left: "30%",
+            background: isLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.2)",
+          }}
         />
         <div
-          className="absolute top-0 bottom-0 w-px bg-white/20"
-          style={{ left: "70%" }}
+          className="absolute top-0 bottom-0 w-px"
+          style={{
+            left: "70%",
+            background: isLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.2)",
+          }}
         />
         <motion.div
           className="h-full rounded-full"
@@ -92,7 +114,12 @@ function RSIBar({ value }: { value: number }) {
           transition={{ duration: 0.5 }}
         />
       </div>
-      <div className="flex justify-between text-[9px] font-mono text-white/20">
+      <div
+        className="flex justify-between text-[9px] font-mono"
+        style={{
+          color: isLight ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)",
+        }}
+      >
         <span>0</span>
         <span style={{ marginLeft: "27%" }}>30</span>
         <span className="mx-auto">50</span>
@@ -103,7 +130,10 @@ function RSIBar({ value }: { value: number }) {
   );
 }
 
-function PatternBadge({ pattern }: { pattern: CandlePattern }) {
+function PatternBadge({
+  pattern,
+  isLight = false,
+}: { pattern: CandlePattern; isLight?: boolean }) {
   const isBull = pattern === "Bullish Engulfing" || pattern === "Hammer";
   const isBear = pattern === "Bearish Engulfing" || pattern === "Shooting Star";
   const color = isBull ? "#00c853" : isBear ? "#ff1744" : "#ffd600";
@@ -111,7 +141,12 @@ function PatternBadge({ pattern }: { pattern: CandlePattern }) {
 
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[11px] font-mono text-white/40">
+      <span
+        className="text-[11px] font-mono"
+        style={{
+          color: isLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)",
+        }}
+      >
         PADRÃO DE VELA
       </span>
       <div className="flex items-center gap-1.5">
@@ -152,7 +187,9 @@ export function SignalPanel({
   liveStream,
   lastOutcome,
   hasCapture = false,
+  theme = "dark",
 }: SignalPanelProps) {
+  const isLight = theme === "light";
   const isGlowBuy = signal?.direction === "buy";
   const isGlowSell = signal?.direction === "sell";
   const isWinGlow = lastOutcome === "win";
@@ -183,8 +220,10 @@ export function SignalPanel({
       <div
         className="relative flex flex-col items-center justify-center rounded-xl overflow-hidden py-8"
         style={{
-          background: "rgba(5,5,12,0.7)",
-          border: "1px solid rgba(255,255,255,0.07)",
+          background: isLight ? "rgba(255,255,255,0.9)" : "rgba(5,5,12,0.7)",
+          border: isLight
+            ? "1px solid rgba(0,0,0,0.08)"
+            : "1px solid rgba(255,255,255,0.07)",
           backdropFilter: "blur(8px)",
           minHeight: 120,
         }}
@@ -252,7 +291,12 @@ export function SignalPanel({
               >
                 {signal.direction === "buy" ? "▲ BUY" : "▼ SELL"}
               </div>
-              <div className="text-sm font-mono text-white/50">
+              <div
+                className="text-sm font-mono"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)",
+                }}
+              >
                 Confiança IA:{" "}
                 <span
                   className="font-black text-base"
@@ -272,8 +316,18 @@ export function SignalPanel({
               exit={{ opacity: 0 }}
               className="flex flex-col items-center gap-2"
             >
-              <Activity size={22} className="text-white/20" />
-              <span className="text-xs font-mono text-white/25 tracking-widest">
+              <Activity
+                size={22}
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.2)",
+                }}
+              />
+              <span
+                className="text-xs font-mono tracking-widest"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.25)",
+                }}
+              >
                 AGUARDANDO ANÁLISE DA IA
               </span>
             </motion.div>
@@ -290,8 +344,19 @@ export function SignalPanel({
           className={`
             relative w-full py-5 rounded-xl font-black text-2xl tracking-widest font-mono
             transition-all duration-300 select-none overflow-hidden
-            ${isGlowBuy ? "glow-buy" : "bg-[#0d1a11] text-[#00c853]/30 border border-[#00c853]/15"}
+            ${isGlowBuy ? "glow-buy" : ""}
           `}
+          style={
+            !isGlowBuy
+              ? {
+                  background: isLight ? "#e8f5e9" : "#0d1a11",
+                  color: isLight ? "rgba(0,180,60,0.5)" : "rgba(0,200,83,0.3)",
+                  border: isLight
+                    ? "1px solid rgba(0,200,83,0.2)"
+                    : "1px solid rgba(0,200,83,0.15)",
+                }
+              : undefined
+          }
           data-ocid="signal.buy_button"
         >
           {isGlowBuy && (
@@ -317,8 +382,19 @@ export function SignalPanel({
           className={`
             relative w-full py-5 rounded-xl font-black text-2xl tracking-widest font-mono
             transition-all duration-300 select-none overflow-hidden
-            ${isGlowSell ? "glow-sell" : "bg-[#1a0d11] text-[#ff1744]/30 border border-[#ff1744]/15"}
+            ${isGlowSell ? "glow-sell" : ""}
           `}
+          style={
+            !isGlowSell
+              ? {
+                  background: isLight ? "#fce4ec" : "#1a0d11",
+                  color: isLight ? "rgba(220,0,50,0.5)" : "rgba(255,23,68,0.3)",
+                  border: isLight
+                    ? "1px solid rgba(255,23,68,0.2)"
+                    : "1px solid rgba(255,23,68,0.15)",
+                }
+              : undefined
+          }
           data-ocid="signal.sell_button"
         >
           {isGlowSell && (
@@ -361,13 +437,21 @@ export function SignalPanel({
           background: !isWindowVisible
             ? "rgba(255,23,68,0.06)"
             : !hasCapture
-              ? "rgba(0,0,0,0.6)"
-              : "rgba(0,200,83,0.04)",
+              ? isLight
+                ? "rgba(0,0,0,0.05)"
+                : "rgba(0,0,0,0.6)"
+              : isLight
+                ? "rgba(255,255,255,0.9)"
+                : "rgba(0,200,83,0.04)",
           border: !isWindowVisible
             ? "1px solid rgba(255,23,68,0.35)"
             : !hasCapture
-              ? "1px solid rgba(255,255,255,0.06)"
-              : "1px solid rgba(0,200,83,0.18)",
+              ? isLight
+                ? "1px solid rgba(0,0,0,0.08)"
+                : "1px solid rgba(255,255,255,0.06)"
+              : isLight
+                ? "1px solid rgba(0,200,83,0.2)"
+                : "1px solid rgba(0,200,83,0.18)",
           backdropFilter: "blur(8px)",
           transition: "background 0.4s, border-color 0.4s",
         }}
@@ -428,10 +512,20 @@ export function SignalPanel({
               >
                 ⚠ NÃO DETECTADO
               </motion.div>
-              <span className="text-[11px] font-mono text-white/30 tracking-widest text-center">
+              <span
+                className="text-[11px] font-mono tracking-widest text-center"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.3)",
+                }}
+              >
                 Navegador em plano de fundo
               </span>
-              <span className="text-[10px] font-mono text-white/20 text-center">
+              <span
+                className="text-[10px] font-mono text-center"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)",
+                }}
+              >
                 Retorne para continuar análise
               </span>
             </motion.div>
@@ -449,18 +543,32 @@ export function SignalPanel({
               <motion.div
                 animate={{ opacity: [0.4, 0.9, 0.4] }}
                 transition={{ duration: 2.5, repeat: Number.POSITIVE_INFINITY }}
-                style={{ color: "rgba(255,255,255,0.15)", fontSize: "2.5rem" }}
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.15)",
+                  fontSize: "2.5rem",
+                }}
               >
                 📷
               </motion.div>
               <div className="flex flex-col items-center gap-1.5">
                 <span
                   className="text-[13px] font-black font-mono tracking-[0.2em]"
-                  style={{ color: "rgba(255,255,255,0.35)" }}
+                  style={{
+                    color: isLight
+                      ? "rgba(0,0,0,0.4)"
+                      : "rgba(255,255,255,0.35)",
+                  }}
                 >
                   CARREGAR CAPTURA
                 </span>
-                <span className="text-[10px] font-mono text-white/20 tracking-widest text-center">
+                <span
+                  className="text-[10px] font-mono tracking-widest text-center"
+                  style={{
+                    color: isLight
+                      ? "rgba(0,0,0,0.3)"
+                      : "rgba(255,255,255,0.2)",
+                  }}
+                >
                   Clique no ícone de câmera
                   <br />
                   para iniciar análise ao vivo
@@ -533,7 +641,12 @@ export function SignalPanel({
                 <p
                   // biome-ignore lint/suspicious/noArrayIndexKey: static list from API response
                   key={i}
-                  className="text-[12px] font-mono leading-relaxed text-white/75"
+                  className="text-[12px] font-mono leading-relaxed"
+                  style={{
+                    color: isLight
+                      ? "rgba(0,0,0,0.7)"
+                      : "rgba(255,255,255,0.75)",
+                  }}
                 >
                   <span
                     style={{ color: "rgba(0,229,255,0.5)" }}
@@ -548,7 +661,9 @@ export function SignalPanel({
                 className="text-[9px] font-mono tracking-widest mt-3 pt-2"
                 style={{
                   color: "rgba(0,229,255,0.35)",
-                  borderTop: "1px solid rgba(0,229,255,0.1)",
+                  borderTop: isLight
+                    ? "1px solid rgba(0,0,0,0.08)"
+                    : "1px solid rgba(0,229,255,0.1)",
                 }}
               >
                 PADRÕES DETECTADOS · GEMINI VISION
@@ -571,7 +686,12 @@ export function SignalPanel({
               >
                 ● CAPTURA ATIVA
               </motion.div>
-              <span className="text-[10px] font-mono text-white/20 tracking-widest text-center">
+              <span
+                className="text-[10px] font-mono tracking-widest text-center"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.2)",
+                }}
+              >
                 Análise inicia nos últimos
                 <br />
                 20 segundos da vela
@@ -585,21 +705,40 @@ export function SignalPanel({
       <div
         className="rounded-xl p-4 space-y-4"
         style={{
-          background: "rgba(5,5,12,0.65)",
-          border: "1px solid rgba(255,255,255,0.07)",
+          background: isLight ? "rgba(255,255,255,0.85)" : "rgba(5,5,12,0.65)",
+          border: isLight
+            ? "1px solid rgba(0,0,0,0.08)"
+            : "1px solid rgba(255,255,255,0.07)",
           backdropFilter: "blur(8px)",
         }}
       >
         <div className="flex items-center gap-2 mb-1">
-          <Zap size={13} className="text-white/40" />
-          <span className="text-[11px] font-mono text-white/40 tracking-widest">
+          <Zap
+            size={13}
+            style={{
+              color: isLight ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)",
+            }}
+          />
+          <span
+            className="text-[11px] font-mono tracking-widest"
+            style={{
+              color: isLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)",
+            }}
+          >
             INDICADORES TÉCNICOS
           </span>
         </div>
 
         {/* EMA Status */}
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-mono text-white/40">EMA CROSS</span>
+          <span
+            className="text-[11px] font-mono"
+            style={{
+              color: isLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)",
+            }}
+          >
+            EMA CROSS
+          </span>
           <div className="flex items-center gap-1.5">
             {ema9 > ema21 ? (
               <TrendingUp size={12} className="text-[#00c853]" />
@@ -617,19 +756,27 @@ export function SignalPanel({
 
         {/* EMA values */}
         <div className="flex items-center justify-between text-[11px] font-mono">
-          <span style={{ color: "rgba(0,229,255,0.8)" }}>
+          <span
+            style={{
+              color: isLight ? "rgba(0,180,210,0.9)" : "rgba(0,229,255,0.8)",
+            }}
+          >
             EMA9: {ema9.toFixed(2)}
           </span>
-          <span style={{ color: "rgba(255,214,0,0.8)" }}>
+          <span
+            style={{
+              color: isLight ? "rgba(180,140,0,0.9)" : "rgba(255,214,0,0.8)",
+            }}
+          >
             EMA21: {ema21.toFixed(2)}
           </span>
         </div>
 
         {/* RSI bar */}
-        <RSIBar value={rsiValue} />
+        <RSIBar value={rsiValue} isLight={isLight} />
 
         {/* Pattern */}
-        <PatternBadge pattern={pattern} />
+        <PatternBadge pattern={pattern} isLight={isLight} />
       </div>
 
       {/* Confidence bar */}
@@ -639,15 +786,27 @@ export function SignalPanel({
           animate={{ opacity: 1, y: 0 }}
           className="rounded-xl p-4 space-y-3"
           style={{
-            background: "rgba(5,5,12,0.65)",
+            background: isLight
+              ? "rgba(255,255,255,0.85)"
+              : "rgba(5,5,12,0.65)",
             border: `1px solid ${signal.direction === "buy" ? "rgba(0,200,83,0.2)" : "rgba(255,23,68,0.2)"}`,
             backdropFilter: "blur(8px)",
           }}
         >
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-1.5">
-              <BarChart2 size={12} className="text-white/40" />
-              <span className="text-[11px] font-mono text-white/40">
+              <BarChart2
+                size={12}
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)",
+                }}
+              />
+              <span
+                className="text-[11px] font-mono"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.4)",
+                }}
+              >
                 CONFIANÇA DO SINAL
               </span>
             </div>
@@ -660,7 +819,12 @@ export function SignalPanel({
               {signal.confidence}%
             </span>
           </div>
-          <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-2.5 rounded-full overflow-hidden"
+            style={{
+              background: isLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
+            }}
+          >
             <motion.div
               className="h-full rounded-full"
               style={{
@@ -674,7 +838,12 @@ export function SignalPanel({
               transition={{ duration: 0.8, ease: "easeOut" }}
             />
           </div>
-          <div className="flex justify-between text-[10px] font-mono text-white/25">
+          <div
+            className="flex justify-between text-[10px] font-mono"
+            style={{
+              color: isLight ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.25)",
+            }}
+          >
             <span>0%</span>
             <span>50%</span>
             <span>100%</span>

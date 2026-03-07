@@ -6,6 +6,7 @@ interface SignalHistoryProps {
   signals: Signal[];
   isLoading: boolean;
   onMarkOutcome: (signalId: bigint, outcome: SignalOutcome) => void;
+  theme?: "dark" | "light";
 }
 
 function formatTime(timestamp: bigint): string {
@@ -42,7 +43,9 @@ export function SignalHistory({
   signals,
   isLoading,
   onMarkOutcome,
+  theme = "dark",
 }: SignalHistoryProps) {
+  const isLight = theme === "light";
   const sorted = [...signals]
     .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
     .slice(0, 5);
@@ -50,10 +53,20 @@ export function SignalHistory({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between px-1">
-        <span className="text-[10px] font-mono text-white/30 tracking-widest">
+        <span
+          className="text-[10px] font-mono tracking-widest"
+          style={{
+            color: isLight ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.3)",
+          }}
+        >
           HISTÓRICO
         </span>
-        <span className="text-[10px] font-mono text-white/20">
+        <span
+          className="text-[10px] font-mono"
+          style={{
+            color: isLight ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.2)",
+          }}
+        >
           {sorted.length} sinais
         </span>
       </div>
@@ -61,8 +74,10 @@ export function SignalHistory({
       <div
         className="rounded-lg overflow-hidden"
         style={{
-          border: "1px solid rgba(255,255,255,0.07)",
-          background: "rgba(5,5,12,0.65)",
+          border: isLight
+            ? "1px solid rgba(0,0,0,0.08)"
+            : "1px solid rgba(255,255,255,0.07)",
+          background: isLight ? "rgba(255,255,255,0.85)" : "rgba(5,5,12,0.65)",
           backdropFilter: "blur(8px)",
         }}
         data-ocid="history.list"
@@ -76,7 +91,12 @@ export function SignalHistory({
               {[0, 1, 2].map((i) => (
                 <motion.div
                   key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-white/20"
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{
+                    background: isLight
+                      ? "rgba(0,0,0,0.2)"
+                      : "rgba(255,255,255,0.2)",
+                  }}
                   animate={{ opacity: [0.2, 1, 0.2] }}
                   transition={{
                     duration: 0.8,
@@ -92,8 +112,18 @@ export function SignalHistory({
             className="flex flex-col items-center justify-center py-6 gap-2"
             data-ocid="history.empty_state"
           >
-            <Clock size={18} className="text-white/15" />
-            <span className="text-[10px] font-mono text-white/20">
+            <Clock
+              size={18}
+              style={{
+                color: isLight ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.15)",
+              }}
+            />
+            <span
+              className="text-[10px] font-mono"
+              style={{
+                color: isLight ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.2)",
+              }}
+            >
               Sem sinais ainda
             </span>
           </div>
@@ -113,7 +143,12 @@ export function SignalHistory({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 10 }}
                   transition={{ duration: 0.25, delay: idx * 0.05 }}
-                  className="flex items-center gap-2 px-3 py-2 border-b border-white/5 last:border-0"
+                  className="flex items-center gap-2 px-3 py-2 last:border-0"
+                  style={{
+                    borderBottom: isLight
+                      ? "1px solid rgba(0,0,0,0.06)"
+                      : "1px solid rgba(255,255,255,0.05)",
+                  }}
                   data-ocid={`history.item.${markerIdx}`}
                 >
                   {/* Direction icon */}
@@ -140,15 +175,36 @@ export function SignalHistory({
                       >
                         {isBuy ? "BUY" : "SELL"}
                       </span>
-                      <span className="text-[9px] font-mono text-white/30">
+                      <span
+                        className="text-[9px] font-mono"
+                        style={{
+                          color: isLight
+                            ? "rgba(0,0,0,0.4)"
+                            : "rgba(255,255,255,0.3)",
+                        }}
+                      >
                         {timeframeLabel(sig.timeframe as string)}
                       </span>
-                      <span className="text-[9px] font-mono text-white/20 ml-auto">
+                      <span
+                        className="text-[9px] font-mono ml-auto"
+                        style={{
+                          color: isLight
+                            ? "rgba(0,0,0,0.3)"
+                            : "rgba(255,255,255,0.2)",
+                        }}
+                      >
                         {formatTime(sig.timestamp)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[9px] font-mono text-white/35">
+                      <span
+                        className="text-[9px] font-mono"
+                        style={{
+                          color: isLight
+                            ? "rgba(0,0,0,0.45)"
+                            : "rgba(255,255,255,0.35)",
+                        }}
+                      >
                         {Number(sig.confidenceScore)}% · {sig.candlePattern}
                       </span>
                     </div>
