@@ -1,5 +1,7 @@
 import { AlertTriangle, Clock } from "lucide-react";
 import { motion } from "motion/react";
+import { useEffect, useState } from "react";
+import { getBrasiliaTimeString } from "../utils/chartEngine";
 
 interface CountdownPanelProps {
   seconds: number;
@@ -24,6 +26,11 @@ export function CountdownPanel({
   theme = "dark",
 }: CountdownPanelProps) {
   const isLight = theme === "light";
+  const [brtTime, setBrtTime] = useState(getBrasiliaTimeString());
+  useEffect(() => {
+    const t = setInterval(() => setBrtTime(getBrasiliaTimeString()), 1000);
+    return () => clearInterval(t);
+  }, []);
   const progress = (() => {
     const total = (() => {
       switch (timeframe) {
@@ -76,7 +83,7 @@ export function CountdownPanel({
         >
           PRÓXIMA VELA
         </span>
-        {isSignalWindow && (
+        {isSignalWindow ? (
           <motion.div
             animate={{ opacity: [1, 0.3, 1] }}
             transition={{ duration: 0.6, repeat: Number.POSITIVE_INFINITY }}
@@ -87,6 +94,15 @@ export function CountdownPanel({
               SINAL ATIVO
             </span>
           </motion.div>
+        ) : (
+          <span
+            className="text-[9px] font-mono ml-auto"
+            style={{
+              color: isLight ? "rgba(0,0,0,0.4)" : "rgba(0,229,255,0.6)",
+            }}
+          >
+            BRT {brtTime}
+          </span>
         )}
       </div>
 

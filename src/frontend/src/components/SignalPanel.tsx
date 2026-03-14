@@ -34,6 +34,11 @@ interface SignalPanelProps {
   /** whether a screen capture / live stream is currently active */
   hasCapture?: boolean;
   theme?: "dark" | "light";
+  srLines?: {
+    type: "support" | "resistance";
+    yPercent: number;
+    price: string;
+  }[];
 }
 
 function AnimatedDots() {
@@ -188,6 +193,7 @@ export function SignalPanel({
   lastOutcome,
   hasCapture = false,
   theme = "dark",
+  srLines = [],
 }: SignalPanelProps) {
   const isLight = theme === "light";
   const isGlowBuy = signal?.direction === "buy";
@@ -422,6 +428,7 @@ export function SignalPanel({
           countdown={countdown}
           signalDirection={signal?.direction ?? null}
           isAnalyzing={isAnalyzing}
+          srLines={srLines}
         />
       )}
 

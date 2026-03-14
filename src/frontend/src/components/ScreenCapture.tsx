@@ -121,6 +121,12 @@ export function ScreenCaptureButton({
   );
 }
 
+interface SRLine {
+  type: "support" | "resistance";
+  yPercent: number;
+  price: string;
+}
+
 interface LiveVideoPreviewProps {
   stream: MediaStream;
   onStop: () => void;
@@ -130,6 +136,8 @@ interface LiveVideoPreviewProps {
   signalDirection?: "buy" | "sell" | null;
   /** true when IA is analyzing */
   isAnalyzing?: boolean;
+  /** support/resistance lines from Gemini analysis */
+  srLines?: SRLine[];
 }
 
 export function LiveVideoPreview({
@@ -138,8 +146,10 @@ export function LiveVideoPreview({
   countdown = 0,
   signalDirection,
   isAnalyzing = false,
+  srLines = [],
 }: LiveVideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
@@ -148,6 +158,47 @@ export function LiveVideoPreview({
       videoRef.current.play().catch(() => {});
     }
   }, [stream]);
+
+  // Draw S/R lines on canvas overlay
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!srLines || srLines.length === 0) return;
+    for (const line of srLines) {
+      const y = (line.yPercent / 100) * canvas.height;
+      const color = line.type === "support" ? "#00c853" : "#ff1744";
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 3]);
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = color;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+      // Label
+      const label = (line.type === "support" ? "S " : "R ") + line.price;
+      ctx.font = "10px monospace";
+      const tw = ctx.measureText(label).width;
+      const lx = canvas.width - tw - 6;
+      const ly = y - 3;
+      ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle =
+        line.type === "support" ? "rgba(0,200,83,0.7)" : "rgba(255,23,68,0.7)";
+      ctx.fillRect(lx - 2, ly - 10, tw + 4, 13);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(label, lx, ly);
+      ctx.restore();
+    }
+  }, [srLines]);
 
   const compactHeight = 160;
   const expandedHeight = 400;
@@ -218,6 +269,7 @@ export function LiveVideoPreview({
     <span id="countdown-display" style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:0.1em"></span>
   </div>
   <video id="video" autoplay muted playsinline></video>
+  <canvas id="sr-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
   <div id="overlay" class="hidden">
     <div id="countdown-label">⏱ FALTAM <span id="countdown-val">20s</span> PARA FECHAR VELA</div>
     <div id="signal-content"></div>
@@ -281,6 +333,43 @@ export function LiveVideoPreview({
       overlay.classList.add('hidden');
       overlay.style.background = '';
       overlay.style.backdropFilter = '';
+    }
+  };
+  // Draw S/R lines on canvas overlay
+  window._updateSR = function(lines) {
+    const canvas = document.getElementById('sr-canvas');
+    if (!canvas) return;
+    const vid = document.getElementById('video');
+    canvas.width = canvas.offsetWidth || vid.offsetWidth || 480;
+    canvas.height = canvas.offsetHeight || vid.offsetHeight || 280;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!lines || lines.length === 0) return;
+    for (const line of lines) {
+      const y = (line.yPercent / 100) * canvas.height;
+      const color = line.type === 'support' ? '#00c853' : '#ff1744';
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 3]);
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = color;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+      const label = (line.type === 'support' ? 'S ' : 'R ') + line.price;
+      ctx.font = '10px monospace';
+      const tw = ctx.measureText(label).width;
+      const lx = canvas.width - tw - 6;
+      const ly = y - 3;
+      ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = line.type === 'support' ? 'rgba(0,200,83,0.7)' : 'rgba(255,23,68,0.7)';
+      ctx.fillRect(lx - 2, ly - 10, tw + 4, 13);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, lx, ly);
+      ctx.restore();
     }
   };
 </script>
@@ -401,6 +490,11 @@ export function LiveVideoPreview({
               objectPosition: "top",
               display: "block",
             }}
+          />
+          {/* S/R lines canvas overlay */}
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none"
           />
           {/* Scan line overlay */}
           <motion.div

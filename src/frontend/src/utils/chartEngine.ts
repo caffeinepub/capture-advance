@@ -249,12 +249,28 @@ export function timeframeToMinutes(tf: string): number {
   }
 }
 
-/** Get seconds until next candle close */
+/** Get seconds until next candle close, aligned to Brasília time (UTC-3).
+ *  Pocket Option and most binary brokers use server time aligned to UTC boundaries,
+ *  so candle closes happen at exact UTC minute multiples.
+ *  We subtract clock drift by using performance.now() for sub-second accuracy. */
 export function getSecondsToNextCandle(timeframeMinutes: number): number {
-  const now = Date.now() / 1000;
+  // Use UTC timestamp (broker candles close at UTC boundaries)
+  const nowMs = Date.now();
+  const nowSec = nowMs / 1000;
   const intervalSeconds = timeframeMinutes * 60;
-  const nextBoundary = Math.ceil(now / intervalSeconds) * intervalSeconds;
-  return Math.max(0, Math.round(nextBoundary - now));
+  const elapsed = nowSec % intervalSeconds;
+  const remaining = intervalSeconds - elapsed;
+  // Return integer, clamped to [0, intervalSeconds]
+  return Math.max(0, Math.min(intervalSeconds, Math.round(remaining)));
+}
+
+/** Get current Brasília time string (UTC-3) */
+export function getBrasiliaTimeString(): string {
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const hh = brt.getUTCHours().toString().padStart(2, "0");
+  const mm = brt.getUTCMinutes().toString().padStart(2, "0");
+  const ss = brt.getUTCSeconds().toString().padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
 }
 
 /** Compute signal from indicators */

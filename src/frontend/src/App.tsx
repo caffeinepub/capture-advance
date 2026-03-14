@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CountdownPanel } from "./components/CountdownPanel";
+import { FloatingReadout } from "./components/FloatingReadout";
 import { LoginScreen } from "./components/LoginScreen";
 import { ScreenCaptureButton } from "./components/ScreenCapture";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -146,6 +147,9 @@ function AppInner({
   );
   const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
   const [isGeminiAnalyzing, setIsGeminiAnalyzing] = useState(false);
+  const [srLines, setSrLines] = useState<
+    { type: "support" | "resistance"; yPercent: number; price: string }[]
+  >([]);
   const [isLiveData, setIsLiveData] = useState(false);
   const [currencyPair, setCurrencyPair] = useState<string>(() => {
     return localStorage.getItem("ca_currency_pair") || "EUR/USD";
@@ -164,6 +168,13 @@ function AppInner({
   const captureFrameRef = useRef<(() => string | null) | null>(null);
   const geminiAnalyzeRef = useRef<((dataUrl: string) => void) | null>(null);
   const voiceFiredRef = useRef(false);
+  const periodicAnalysisRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+  const minuteSignalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastPeriodicFireRef = useRef(0);
+  const [floatingVisible, setFloatingVisible] = useState(false);
+  const floatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect when window is hidden (minimized, other tab, etc.)
   useEffect(() => {
@@ -272,6 +283,13 @@ function AppInner({
     if (!voiceFiredRef.current) {
       voiceFiredRef.current = true;
       speakSignal(signal.direction);
+      // Show floating readout overlay
+      setFloatingVisible(true);
+      if (floatingTimerRef.current) clearTimeout(floatingTimerRef.current);
+      floatingTimerRef.current = setTimeout(
+        () => setFloatingVisible(false),
+        5000,
+      );
     }
   }, [signal, timeframe, saveSignalMutate, speakSignal]);
 
@@ -418,6 +436,35 @@ function AppInner({
 
   useEffect(() => {
     if (countdownRef.current) clearInterval(countdownRef.current);
+    if (periodicAnalysisRef.current) clearInterval(periodicAnalysisRef.current);
+    if (minuteSignalRef.current) clearInterval(minuteSignalRef.current);
+
+    const fireAnalysis = () => {
+      triggerRef.current?.();
+      const frame = captureFrameRef.current?.();
+      if (frame) geminiAnalyzeRef.current?.(frame);
+    };
+
+    // --- 1) Every 30 seconds: run a quick analysis pass ---
+    periodicAnalysisRef.current = setInterval(() => {
+      const now = Date.now();
+      // Avoid double-firing if the per-candle trigger fired in the last 3s
+      if (now - lastPeriodicFireRef.current < 3000) return;
+      lastPeriodicFireRef.current = now;
+      fireAnalysis();
+    }, 30000);
+
+    // --- 2) Every minute, fire exactly at 20s before the minute boundary ---
+    minuteSignalRef.current = setInterval(() => {
+      // Brasília = UTC-3
+      const nowBrasilia = Date.now() - 3 * 60 * 60 * 1000;
+      const secsInMinute = Math.floor(nowBrasilia / 1000) % 60;
+      const secsLeft = 60 - secsInMinute; // seconds to next minute
+      if (secsLeft === 20) {
+        lastPeriodicFireRef.current = Date.now();
+        fireAnalysis();
+      }
+    }, 1000);
 
     const updateCountdown = () => {
       const minutes = timeframeToMinutes(timeframe);
@@ -432,6 +479,7 @@ function AppInner({
         !signalFiredRef.current
       ) {
         signalFiredRef.current = true;
+        lastPeriodicFireRef.current = Date.now();
         // Trigger local analysis
         triggerRef.current?.();
         // Also capture live stream frame and send to Gemini
@@ -454,6 +502,9 @@ function AppInner({
 
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
+      if (periodicAnalysisRef.current)
+        clearInterval(periodicAnalysisRef.current);
+      if (minuteSignalRef.current) clearInterval(minuteSignalRef.current);
     };
   }, [timeframe]);
 
@@ -473,6 +524,19 @@ function AppInner({
       isSignalWindow: countdown <= 20 && countdown > 0,
     });
   }, [countdown, isAnalyzing, signal]);
+
+  useEffect(() => {
+    const popup = (
+      window as Window &
+        typeof globalThis & {
+          _caFloatPopup?: Window & {
+            _updateSR?: (lines: typeof srLines) => void;
+          };
+        }
+    )._caFloatPopup;
+    if (!popup || popup.closed) return;
+    popup._updateSR?.(srLines);
+  }, [srLines]);
 
   /** Capture a still frame from the live background video element */
   const captureFrameFromLiveStream = useCallback((): string | null => {
@@ -500,6 +564,7 @@ function AppInner({
 
     setIsGeminiAnalyzing(true);
     setGeminiAnalysis(null);
+    setSrLines([]);
 
     try {
       // Strip the data URL prefix to get pure base64
@@ -521,7 +586,7 @@ function AppInner({
                     },
                   },
                   {
-                    text: "Você é um analista de trading especialista. Analise os ÚLTIMOS 5 CANDLES visíveis na parte direita do gráfico. Para cada padrão identificado informe: nome do padrão e direção (COMPRA ou VENDA). Considere padrões de 2 a 5 candles como Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Engulfing, Doji, Hammer, Shooting Star, Inside Bar. Seja conciso — máximo 3 padrões dos últimos 5 candles. NÃO mencione RSI, EMA, médias móveis. Se identificar o par de moedas, inclua na última linha: PAR: XXX/YYY.",
+                    text: 'Você é um analista de trading especialista. Analise os ÚLTIMOS 5 CANDLES visíveis na parte direita do gráfico. Para cada padrão identificado informe: nome do padrão e direção (COMPRA ou VENDA). Considere padrões de 2 a 5 candles como Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Engulfing, Doji, Hammer, Shooting Star, Inside Bar. Seja conciso — máximo 3 padrões dos últimos 5 candles. NÃO mencione RSI, EMA, médias móveis. Se identificar o par de moedas, inclua na última linha: PAR: XXX/YYY. Além dos padrões de candle, identifique SUPORTE e RESISTÊNCIA visíveis no gráfico. Retorne no final da resposta um bloco JSON exato (não markdown) assim: SR_JSON:{"lines":[{"type":"support","yPercent":35,"price":"1.0850"},{"type":"resistance","yPercent":72,"price":"1.0920"}]} yPercent é a posição vertical da linha: 0=topo do gráfico, 100=base do gráfico (eixo de preço invertido). Máximo 2 suportes e 2 resistências. Se não identificar nenhum, omita o bloco SR_JSON.',
                   },
                 ],
               },
@@ -550,6 +615,25 @@ function AppInner({
       }
 
       setGeminiAnalysis(text);
+
+      // Parse S/R lines from Gemini response
+      const srMatch = text.match(/SR_JSON:(\{.*?\})/s);
+      if (srMatch) {
+        try {
+          const parsed = JSON.parse(srMatch[1]) as {
+            lines: {
+              type: "support" | "resistance";
+              yPercent: number;
+              price: string;
+            }[];
+          };
+          if (Array.isArray(parsed.lines)) setSrLines(parsed.lines);
+        } catch {
+          setSrLines([]);
+        }
+      } else {
+        setSrLines([]);
+      }
 
       // Parse currency pair from Gemini response (e.g. "PAR: EUR/USD")
       const parMatch = text.match(/PAR:\s*([A-Z]{2,6}\/[A-Z]{2,6})/i);
@@ -644,6 +728,7 @@ function AppInner({
       });
       // Don't show error text in the analysis panel — fall back to local analysis silently
       setGeminiAnalysis(null);
+      setSrLines([]);
     } finally {
       setIsGeminiAnalyzing(false);
     }
@@ -724,6 +809,7 @@ function AppInner({
   function handleClearScreen() {
     setCaptureDataUrl(null);
     setGeminiAnalysis(null);
+    setSrLines([]);
     setIsGeminiAnalyzing(false);
     setSignal(null);
     if (liveStream) {
@@ -777,6 +863,11 @@ function AppInner({
     >
       <Toaster position="top-right" />
 
+      <FloatingReadout
+        signal={signal}
+        analysis={geminiAnalysis}
+        visible={floatingVisible}
+      />
       {/* Fullscreen live video background when stream is active */}
       <div
         className="fixed inset-0 pointer-events-none"
@@ -1026,6 +1117,7 @@ function AppInner({
                 onCapture={(url) => {
                   setCaptureDataUrl(url);
                   setGeminiAnalysis(null);
+                  setSrLines([]);
                   analyzeWithGemini(url);
                 }}
                 onStreamReady={(stream) => {
@@ -1033,6 +1125,7 @@ function AppInner({
                   if (!stream) {
                     setCaptureDataUrl(null);
                     setGeminiAnalysis(null);
+                    setSrLines([]);
                     setIsGeminiAnalyzing(false);
                   } else {
                     // Try to auto-detect currency pair from track label (tab title)
@@ -1336,6 +1429,7 @@ function AppInner({
               onClearCapture={() => {
                 setCaptureDataUrl(null);
                 setGeminiAnalysis(null);
+                setSrLines([]);
                 setIsGeminiAnalyzing(false);
                 if (liveStream) {
                   for (const t of liveStream.getTracks()) t.stop();
@@ -1348,6 +1442,7 @@ function AppInner({
               lastOutcome={lastOutcome}
               hasCapture={!!(liveStream || captureDataUrl)}
               theme={theme}
+              srLines={srLines}
             />
 
             <SignalHistory
