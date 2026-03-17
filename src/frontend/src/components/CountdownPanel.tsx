@@ -61,10 +61,10 @@ export function CountdownPanel({
       data-ocid="countdown.panel"
       className="rounded-lg p-3 flex flex-col items-center gap-2"
       style={{
-        background: isLight ? "rgba(255,255,255,0.88)" : "rgba(5,5,12,0.7)",
+        background: isLight ? "rgba(255,255,255,0.88)" : "rgba(12,0,30,0.7)",
         border: isLight
-          ? "1px solid rgba(0,200,83,0.15)"
-          : "1px solid rgba(0,200,83,0.12)",
+          ? "1px solid rgba(168,85,247,0.15)"
+          : "1px solid rgba(168,85,247,0.12)",
         backdropFilter: "blur(8px)",
       }}
     >
@@ -98,7 +98,7 @@ export function CountdownPanel({
           <span
             className="text-[9px] font-mono ml-auto"
             style={{
-              color: isLight ? "rgba(0,0,0,0.4)" : "rgba(0,229,255,0.6)",
+              color: isLight ? "rgba(0,0,0,0.4)" : "rgba(216,180,254,0.6)",
             }}
           >
             BRT {brtTime}
@@ -134,7 +134,7 @@ export function CountdownPanel({
                   ? "#ffd600"
                   : seconds <= 10
                     ? "#ff1744"
-                    : "#00c853"
+                    : "#a855f7"
               }
               strokeWidth="3"
               strokeLinecap="round"

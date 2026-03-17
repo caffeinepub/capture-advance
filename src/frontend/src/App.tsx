@@ -273,7 +273,7 @@ function AppInner({
     const color = signal.direction === "buy" ? "#00c853" : "#ff1744";
     toast.success(`Sinal ${dir} — Confiança ${signal.confidence}%`, {
       style: {
-        background: "rgba(8,8,16,0.95)",
+        background: "rgba(10,0,24,0.95)",
         border: `1px solid ${color}`,
         color,
         backdropFilter: "blur(12px)",
@@ -409,7 +409,7 @@ function AppInner({
         } else {
           toast.info("Análise concluída — sem sinal claro", {
             style: {
-              background: "rgba(8,8,16,0.9)",
+              background: "rgba(10,0,24,0.9)",
               color: "rgba(255,255,255,0.6)",
               backdropFilter: "blur(12px)",
             },
@@ -445,23 +445,18 @@ function AppInner({
       if (frame) geminiAnalyzeRef.current?.(frame);
     };
 
-    // --- 1) Every 30 seconds: run a quick analysis pass ---
-    periodicAnalysisRef.current = setInterval(() => {
-      const now = Date.now();
-      // Avoid double-firing if the per-candle trigger fired in the last 3s
-      if (now - lastPeriodicFireRef.current < 3000) return;
-      lastPeriodicFireRef.current = now;
-      fireAnalysis();
-    }, 30000);
-
-    // --- 2) Every minute, fire exactly at 20s before the minute boundary ---
+    // --- Synchronized analysis: fire at exactly :30s of each minute (Brasília time) ---
+    // This replaces the unsynchronized 30s interval to prevent early fires
     minuteSignalRef.current = setInterval(() => {
       // Brasília = UTC-3
       const nowBrasilia = Date.now() - 3 * 60 * 60 * 1000;
       const secsInMinute = Math.floor(nowBrasilia / 1000) % 60;
-      const secsLeft = 60 - secsInMinute; // seconds to next minute
-      if (secsLeft === 20) {
-        lastPeriodicFireRef.current = Date.now();
+      // Fire at the :30 second mark of each minute (30s into each minute)
+      if (secsInMinute === 30) {
+        const now = Date.now();
+        // Avoid double-firing within 3s
+        if (now - lastPeriodicFireRef.current < 3000) return;
+        lastPeriodicFireRef.current = now;
         fireAnalysis();
       }
     }, 1000);
@@ -586,13 +581,13 @@ function AppInner({
                     },
                   },
                   {
-                    text: 'Você é um analista de trading especialista. Analise os ÚLTIMOS 5 CANDLES visíveis na parte direita do gráfico. Para cada padrão identificado informe: nome do padrão e direção (COMPRA ou VENDA). Considere padrões de 2 a 5 candles como Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Engulfing, Doji, Hammer, Shooting Star, Inside Bar. Seja conciso — máximo 3 padrões dos últimos 5 candles. NÃO mencione RSI, EMA, médias móveis. Se identificar o par de moedas, inclua na última linha: PAR: XXX/YYY. Além dos padrões de candle, identifique SUPORTE e RESISTÊNCIA visíveis no gráfico. Retorne no final da resposta um bloco JSON exato (não markdown) assim: SR_JSON:{"lines":[{"type":"support","yPercent":35,"price":"1.0850"},{"type":"resistance","yPercent":72,"price":"1.0920"}]} yPercent é a posição vertical da linha: 0=topo do gráfico, 100=base do gráfico (eixo de preço invertido). Máximo 2 suportes e 2 resistências. Se não identificar nenhum, omita o bloco SR_JSON.',
+                    text: 'Você é um analista técnico de trading de alta precisão. Seu objetivo é identificar a direção mais provável do próximo candle com base nos padrões visíveis. REGRAS: 1) Analise os ÚLTIMOS 5 CANDLES na borda direita do gráfico. 2) Identifique o padrão predominante: Engulfing Altista/Baixista, Doji, Hammer, Shooting Star, Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Inside Bar, Pin Bar, Marubozu. 3) Considere a tendência geral dos últimos 10 candles para contexto. 4) Indique a direção com alta convicção: COMPRA (se alta probabilidade de subida) ou VENDA (se alta probabilidade de queda). 5) NÃO mencione RSI, EMA, médias móveis. 6) Se identificar o par de moedas no gráfico, inclua na última linha: PAR: XXX/YYY. 7) Identifique SUPORTE e RESISTÊNCIA visíveis no gráfico (linhas horizontais, níveis de preço relevantes). Formato da resposta: [PADRÃO]: [NOME DO PADRÃO] → [COMPRA/VENDA] [Segunda linha]: contexto breve da tendência (máx 10 palavras). SR_JSON:{"lines":[{"type":"support","yPercent":35,"price":"1.0850"},{"type":"resistance","yPercent":72,"price":"1.0920"}]} yPercent: 0=topo, 100=base. Máximo 2 suportes e 2 resistências. Se não houver, omita SR_JSON.',
                   },
                 ],
               },
             ],
             generationConfig: {
-              maxOutputTokens: 200,
+              maxOutputTokens: 300,
               temperature: 0.1,
             },
           }),
@@ -644,9 +639,9 @@ function AppInner({
         localStorage.setItem("ca_currency_pair", detectedPair);
         toast.success(`Par detectado: ${detectedPair}`, {
           style: {
-            background: "rgba(8,8,16,0.95)",
-            border: "1px solid rgba(0,229,255,0.3)",
-            color: "#00e5ff",
+            background: "rgba(10,0,24,0.95)",
+            border: "1px solid rgba(216,180,254,0.3)",
+            color: "#d8b4fe",
             backdropFilter: "blur(12px)",
           },
         });
@@ -666,8 +661,8 @@ function AppInner({
       // Extract confidence percentage if present (e.g. "75%", "80%")
       const confMatch = text.match(/(\d{1,3})\s*%/);
       const confidence = confMatch
-        ? Math.min(100, Math.max(0, Number.parseInt(confMatch[1], 10)))
-        : 75;
+        ? Math.min(100, Math.max(70, Number.parseInt(confMatch[1], 10)))
+        : 78;
 
       // Compute fresh indicators from latest candles state
       setCandles((prevCandles) => {
@@ -711,16 +706,16 @@ function AppInner({
 
       toast.success("Análise Gemini concluída!", {
         style: {
-          background: "rgba(8,8,16,0.95)",
-          border: "1px solid rgba(0,229,255,0.3)",
-          color: "#00e5ff",
+          background: "rgba(10,0,24,0.95)",
+          border: "1px solid rgba(216,180,254,0.3)",
+          color: "#d8b4fe",
           backdropFilter: "blur(12px)",
         },
       });
     } catch {
       toast.error("Gemini indisponível — usando análise local", {
         style: {
-          background: "rgba(8,8,16,0.95)",
+          background: "rgba(10,0,24,0.95)",
           border: "1px solid rgba(255,214,0,0.3)",
           color: "#ffd600",
           backdropFilter: "blur(12px)",
@@ -767,16 +762,16 @@ function AppInner({
     if (isCrypto) {
       toast.info(`Conectando à Binance para ${trimmed}...`, {
         style: {
-          background: "rgba(8,8,16,0.95)",
-          border: "1px solid rgba(0,200,83,0.3)",
-          color: "#00c853",
+          background: "rgba(10,0,24,0.95)",
+          border: "1px solid rgba(168,85,247,0.3)",
+          color: "#a855f7",
           backdropFilter: "blur(12px)",
         },
       });
     } else {
       toast.info(`Par ${trimmed} em modo simulado`, {
         style: {
-          background: "rgba(8,8,16,0.95)",
+          background: "rgba(10,0,24,0.95)",
           border: "1px solid rgba(255,214,0,0.3)",
           color: "#ffd600",
           backdropFilter: "blur(12px)",
@@ -818,9 +813,9 @@ function AppInner({
     }
     toast.success("Tela limpa!", {
       style: {
-        background: "rgba(8,8,16,0.95)",
-        border: "1px solid rgba(0,200,83,0.3)",
-        color: "#00c853",
+        background: "rgba(10,0,24,0.95)",
+        border: "1px solid rgba(168,85,247,0.3)",
+        color: "#a855f7",
         backdropFilter: "blur(12px)",
       },
     });
@@ -859,7 +854,7 @@ function AppInner({
   return (
     <div
       className={`w-full h-screen flex overflow-hidden ${isPopup ? "items-stretch justify-center" : "items-center justify-start"}`}
-      style={{ background: isLight ? "#f0f4f0" : "#080810" }}
+      style={{ background: isLight ? "#f0f4f0" : "#0a0018" }}
     >
       <Toaster position="top-right" />
 
@@ -890,8 +885,8 @@ function AppInner({
         className="fixed inset-0 pointer-events-none"
         style={{
           backgroundImage: isLight
-            ? "linear-gradient(rgba(0,200,83,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,83,0.04) 1px, transparent 1px)"
-            : "linear-gradient(rgba(0,200,83,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,83,0.015) 1px, transparent 1px)",
+            ? "linear-gradient(rgba(168,85,247,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.04) 1px, transparent 1px)"
+            : "linear-gradient(rgba(168,85,247,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.015) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
           zIndex: 0,
         }}
@@ -913,12 +908,12 @@ function AppInner({
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            border: "1px solid rgba(0,200,83,0.25)",
+            border: "1px solid rgba(168,85,247,0.25)",
             boxShadow: signal
               ? signal.direction === "buy"
-                ? "inset 0 0 60px rgba(0,200,83,0.08), 0 0 40px rgba(0,200,83,0.12), -2px 0 30px rgba(0,200,83,0.1)"
+                ? "inset 0 0 60px rgba(168,85,247,0.08), 0 0 40px rgba(168,85,247,0.12), -2px 0 30px rgba(168,85,247,0.1)"
                 : "inset 0 0 60px rgba(255,23,68,0.08), 0 0 40px rgba(255,23,68,0.12), -2px 0 30px rgba(255,23,68,0.1)"
-              : "inset 0 0 40px rgba(0,200,83,0.04), 0 0 20px rgba(0,200,83,0.06)",
+              : "inset 0 0 40px rgba(168,85,247,0.04), 0 0 20px rgba(168,85,247,0.06)",
             transition: "box-shadow 0.8s ease",
             zIndex: 20,
           }}
@@ -936,8 +931,8 @@ function AppInner({
               left: 0,
               width: 12,
               height: 12,
-              borderTop: "2px solid #00c853",
-              borderLeft: "2px solid #00c853",
+              borderTop: "2px solid #a855f7",
+              borderLeft: "2px solid #a855f7",
               opacity: 0.9,
             }}
           />
@@ -954,8 +949,8 @@ function AppInner({
               right: 0,
               width: 12,
               height: 12,
-              borderTop: "2px solid #00c853",
-              borderRight: "2px solid #00c853",
+              borderTop: "2px solid #a855f7",
+              borderRight: "2px solid #a855f7",
               opacity: 0.9,
             }}
           />
@@ -972,8 +967,8 @@ function AppInner({
               left: 0,
               width: 12,
               height: 12,
-              borderBottom: "2px solid #00c853",
-              borderLeft: "2px solid #00c853",
+              borderBottom: "2px solid #a855f7",
+              borderLeft: "2px solid #a855f7",
               opacity: 0.9,
             }}
           />
@@ -990,8 +985,8 @@ function AppInner({
               right: 0,
               width: 12,
               height: 12,
-              borderBottom: "2px solid #00c853",
-              borderRight: "2px solid #00c853",
+              borderBottom: "2px solid #a855f7",
+              borderRight: "2px solid #a855f7",
               opacity: 0.9,
             }}
           />
@@ -1003,7 +998,7 @@ function AppInner({
           style={{
             height: "1px",
             background:
-              "linear-gradient(90deg, transparent, rgba(0,200,83,0.35), transparent)",
+              "linear-gradient(90deg, transparent, rgba(168,85,247,0.35), transparent)",
             zIndex: 22,
           }}
           animate={{ top: ["0%", "100%"] }}
@@ -1031,11 +1026,11 @@ function AppInner({
             className="flex items-center justify-between px-3 py-2 flex-shrink-0"
             style={{
               background: isLight
-                ? "rgba(0,200,83,0.08)"
-                : "rgba(0,200,83,0.06)",
+                ? "rgba(168,85,247,0.08)"
+                : "rgba(168,85,247,0.06)",
               borderBottom: isLight
-                ? "1px solid rgba(0,200,83,0.22)"
-                : "1px solid rgba(0,200,83,0.18)",
+                ? "1px solid rgba(168,85,247,0.22)"
+                : "1px solid rgba(168,85,247,0.18)",
             }}
           >
             {/* Logo */}
@@ -1043,9 +1038,9 @@ function AppInner({
               <div
                 className="w-6 h-6 rounded flex items-center justify-center font-black text-[9px] font-mono"
                 style={{
-                  background: "linear-gradient(135deg, #00c853, #00e676)",
+                  background: "linear-gradient(135deg, #7c3aed, #a855f7)",
                   color: "#000",
-                  boxShadow: "0 0 10px rgba(0,200,83,0.6)",
+                  boxShadow: "0 0 10px rgba(168,85,247,0.6)",
                 }}
               >
                 CA
@@ -1057,7 +1052,7 @@ function AppInner({
                     color: isLight ? "#1a1a1a" : "rgba(255,255,255,0.9)",
                   }}
                 >
-                  CAPTURE <span style={{ color: "#00c853" }}>ADVANCE</span>
+                  CAPTURE <span style={{ color: "#a855f7" }}>ADVANCE</span>
                 </div>
                 <div
                   className="text-[8px] font-mono tracking-widest"
@@ -1078,10 +1073,10 @@ function AppInner({
                 className="flex items-center gap-1 px-2 py-0.5 rounded"
                 style={{
                   background: isLiveData
-                    ? "rgba(0,200,83,0.1)"
+                    ? "rgba(168,85,247,0.1)"
                     : "rgba(255,214,0,0.1)",
                   border: isLiveData
-                    ? "1px solid rgba(0,200,83,0.2)"
+                    ? "1px solid rgba(168,85,247,0.2)"
                     : "1px solid rgba(255,214,0,0.2)",
                 }}
                 title={
@@ -1089,13 +1084,13 @@ function AppInner({
                 }
               >
                 {isLiveData ? (
-                  <Wifi size={9} style={{ color: "#00c853" }} />
+                  <Wifi size={9} style={{ color: "#a855f7" }} />
                 ) : (
                   <WifiOff size={9} style={{ color: "#ffd600" }} />
                 )}
                 <span
                   className="text-[9px] font-mono font-semibold"
-                  style={{ color: isLiveData ? "#00c853" : "#ffd600" }}
+                  style={{ color: isLiveData ? "#a855f7" : "#ffd600" }}
                 >
                   {isLiveData ? "BINANCE" : "SIM"}
                 </span>
@@ -1103,12 +1098,12 @@ function AppInner({
               <div
                 className="flex items-center gap-1 px-2 py-0.5 rounded"
                 style={{
-                  background: "rgba(0,200,83,0.1)",
-                  border: "1px solid rgba(0,200,83,0.2)",
+                  background: "rgba(168,85,247,0.1)",
+                  border: "1px solid rgba(168,85,247,0.2)",
                 }}
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00c853] animate-pulse" />
-                <span className="text-[9px] font-mono text-[#00c853] font-semibold">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#a855f7] animate-pulse" />
+                <span className="text-[9px] font-mono text-[#a855f7] font-semibold">
                   LIVE
                 </span>
               </div>
@@ -1139,9 +1134,9 @@ function AppInner({
                       localStorage.setItem("ca_currency_pair", detected);
                       toast.success(`Par detectado: ${detected}`, {
                         style: {
-                          background: "rgba(8,8,16,0.95)",
-                          border: "1px solid rgba(0,229,255,0.3)",
-                          color: "#00e5ff",
+                          background: "rgba(10,0,24,0.95)",
+                          border: "1px solid rgba(216,180,254,0.3)",
+                          color: "#d8b4fe",
                           backdropFilter: "blur(12px)",
                         },
                       });
@@ -1157,9 +1152,9 @@ function AppInner({
                   title="Abrir como janela flutuante"
                   className="flex items-center justify-center w-6 h-6 rounded transition-opacity hover:opacity-80"
                   style={{
-                    background: "rgba(0,200,83,0.1)",
-                    border: "1px solid rgba(0,200,83,0.2)",
-                    color: "#00c853",
+                    background: "rgba(168,85,247,0.1)",
+                    border: "1px solid rgba(168,85,247,0.2)",
+                    color: "#a855f7",
                   }}
                   data-ocid="header.open_modal_button"
                 >
@@ -1253,13 +1248,13 @@ function AppInner({
                           : "rgba(255,255,255,0.3)",
                     background:
                       timeframe === key
-                        ? "linear-gradient(135deg, #00c853, #00e676)"
+                        ? "linear-gradient(135deg, #7c3aed, #a855f7)"
                         : isLight
                           ? "rgba(0,0,0,0.05)"
                           : "rgba(255,255,255,0.04)",
                     boxShadow:
                       timeframe === key
-                        ? "0 0 10px rgba(0,200,83,0.5)"
+                        ? "0 0 10px rgba(168,85,247,0.5)"
                         : "none",
                     border:
                       timeframe === key
@@ -1294,9 +1289,9 @@ function AppInner({
                     maxLength={12}
                     className="bg-transparent border-b text-center text-[11px] font-black font-mono tracking-widest outline-none w-24"
                     style={{
-                      color: "#00c853",
-                      borderColor: "rgba(0,200,83,0.5)",
-                      caretColor: "#00c853",
+                      color: "#a855f7",
+                      borderColor: "rgba(168,85,247,0.5)",
+                      caretColor: "#a855f7",
                     }}
                     data-ocid="currency_pair.input"
                   />
@@ -1304,7 +1299,7 @@ function AppInner({
                     type="button"
                     onClick={handleSavePair}
                     className="flex items-center justify-center w-4 h-4 rounded"
-                    style={{ color: "#00c853" }}
+                    style={{ color: "#a855f7" }}
                     data-ocid="currency_pair.save_button"
                   >
                     <Check size={11} />
@@ -1323,14 +1318,14 @@ function AppInner({
                 >
                   <span
                     className="text-[11px] font-black font-mono tracking-widest"
-                    style={{ color: "rgba(0,200,83,0.7)" }}
+                    style={{ color: "rgba(168,85,247,0.7)" }}
                   >
                     {liveStream ? "WEB/CONTEUDO" : currencyPair}
                   </span>
                   <Pencil
                     size={9}
                     className="opacity-0 group-hover:opacity-60 transition-opacity"
-                    style={{ color: "#00c853" }}
+                    style={{ color: "#a855f7" }}
                   />
                 </button>
               )}
@@ -1338,7 +1333,7 @@ function AppInner({
               <span
                 className="text-[10px] font-mono font-bold tabular-nums"
                 style={{
-                  color: "rgba(0,200,83,0.55)",
+                  color: "rgba(168,85,247,0.55)",
                   letterSpacing: "0.05em",
                 }}
               >
@@ -1368,7 +1363,7 @@ function AppInner({
               >
                 BID
               </span>
-              <span className="text-[11px] font-mono font-bold text-[#00c853]">
+              <span className="text-[11px] font-mono font-bold text-[#a855f7]">
                 {formatPrice(bid, currencyPair)}
               </span>
             </div>
@@ -1457,7 +1452,7 @@ function AppInner({
           <div
             className="flex items-center justify-center py-1 flex-shrink-0"
             style={{
-              borderTop: "1px solid rgba(0,200,83,0.1)",
+              borderTop: "1px solid rgba(168,85,247,0.1)",
               background: isLight ? "rgba(0,0,0,0.05)" : "rgba(0,0,0,0.4)",
             }}
           >
@@ -1496,7 +1491,7 @@ function AppInner({
             style={{
               background:
                 signal.direction === "buy"
-                  ? "radial-gradient(circle at 15% 50%, rgba(0,200,83,0.12) 0%, transparent 60%)"
+                  ? "radial-gradient(circle at 15% 50%, rgba(168,85,247,0.12) 0%, transparent 60%)"
                   : "radial-gradient(circle at 15% 50%, rgba(255,23,68,0.12) 0%, transparent 60%)",
               zIndex: 50,
             }}
@@ -1620,9 +1615,9 @@ function AppInner({
                       textShadow:
                         signal.direction === "buy"
                           ? [
-                              "0 0 40px rgba(0,200,83,0.6)",
-                              "0 0 80px rgba(0,200,83,1)",
-                              "0 0 40px rgba(0,200,83,0.6)",
+                              "0 0 40px rgba(168,85,247,0.6)",
+                              "0 0 80px rgba(168,85,247,1)",
+                              "0 0 40px rgba(168,85,247,0.6)",
                             ]
                           : [
                               "0 0 40px rgba(255,23,68,0.6)",
@@ -1650,7 +1645,7 @@ function AppInner({
                     style={{
                       color:
                         signal.direction === "buy"
-                          ? "rgba(0,200,83,0.75)"
+                          ? "rgba(168,85,247,0.75)"
                           : "rgba(255,23,68,0.75)",
                     }}
                   >
@@ -1658,7 +1653,7 @@ function AppInner({
                     <span
                       style={{
                         color:
-                          signal.direction === "buy" ? "#00e676" : "#ff5252",
+                          signal.direction === "buy" ? "#c084fc" : "#ff5252",
                       }}
                     >
                       {signal.confidence}%
@@ -1690,7 +1685,7 @@ function AppInner({
                     style={{
                       color:
                         signal.direction === "buy"
-                          ? "rgba(0,200,83,0.5)"
+                          ? "rgba(168,85,247,0.5)"
                           : "rgba(255,23,68,0.5)",
                     }}
                   >

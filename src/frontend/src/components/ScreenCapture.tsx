@@ -107,12 +107,12 @@ export function ScreenCaptureButton({
       className="flex items-center justify-center w-6 h-6 rounded transition-opacity hover:opacity-80"
       style={{
         background: isCapturing
-          ? "rgba(0,229,255,0.25)"
-          : "rgba(0,229,255,0.1)",
+          ? "rgba(216,180,254,0.25)"
+          : "rgba(216,180,254,0.1)",
         border: isCapturing
-          ? "1px solid rgba(0,229,255,0.7)"
-          : "1px solid rgba(0,229,255,0.25)",
-        color: "#00e5ff",
+          ? "1px solid rgba(216,180,254,0.7)"
+          : "1px solid rgba(216,180,254,0.25)",
+        color: "#d8b4fe",
       }}
       data-ocid="capture.upload_button"
     >
@@ -192,7 +192,9 @@ export function LiveVideoPreview({
       ctx.setLineDash([]);
       ctx.shadowBlur = 0;
       ctx.fillStyle =
-        line.type === "support" ? "rgba(0,200,83,0.7)" : "rgba(255,23,68,0.7)";
+        line.type === "support"
+          ? "rgba(168,85,247,0.7)"
+          : "rgba(255,23,68,0.7)";
       ctx.fillRect(lx - 2, ly - 10, tw + 4, 13);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(label, lx, ly);
@@ -227,11 +229,11 @@ export function LiveVideoPreview({
 <title>Capture Advance · AO VIVO</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
-  html,body{width:100%;height:100%;background:#080810;overflow:hidden;font-family:monospace;}
+  html,body{width:100%;height:100%;background:#0a0018;overflow:hidden;font-family:monospace;}
   #wrap{position:relative;width:100%;height:100%;display:flex;flex-direction:column;}
-  #header{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:rgba(0,229,255,0.06);border-bottom:1px solid rgba(0,229,255,0.2);flex-shrink:0;}
-  #dot{width:8px;height:8px;border-radius:50%;background:#00e5ff;animation:pulse 0.8s ease-in-out infinite;}
-  #label{font-size:10px;color:#00e5ff;font-weight:700;letter-spacing:0.15em;margin-left:6px;}
+  #header{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:rgba(216,180,254,0.06);border-bottom:1px solid rgba(216,180,254,0.2);flex-shrink:0;}
+  #dot{width:8px;height:8px;border-radius:50%;background:#d8b4fe;animation:pulse 0.8s ease-in-out infinite;}
+  #label{font-size:10px;color:#d8b4fe;font-weight:700;letter-spacing:0.15em;margin-left:6px;}
   #video{flex:1;width:100%;object-fit:fill;display:block;}
   #overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;pointer-events:none;transition:opacity 0.4s;}
   #overlay.hidden{opacity:0;}
@@ -365,7 +367,7 @@ export function LiveVideoPreview({
       const ly = y - 3;
       ctx.setLineDash([]);
       ctx.shadowBlur = 0;
-      ctx.fillStyle = line.type === 'support' ? 'rgba(0,200,83,0.7)' : 'rgba(255,23,68,0.7)';
+      ctx.fillStyle = line.type === 'support' ? 'rgba(168,85,247,0.7)' : 'rgba(255,23,68,0.7)';
       ctx.fillRect(lx - 2, ly - 10, tw + 4, 13);
       ctx.fillStyle = '#ffffff';
       ctx.fillText(label, lx, ly);
@@ -411,26 +413,26 @@ export function LiveVideoPreview({
         transition={{ duration: 0.3 }}
         className="relative rounded-xl overflow-hidden"
         style={{
-          border: "1px solid rgba(0,229,255,0.35)",
-          boxShadow: "0 0 20px rgba(0,229,255,0.12)",
+          border: "1px solid rgba(216,180,254,0.35)",
+          boxShadow: "0 0 20px rgba(216,180,254,0.12)",
         }}
       >
         {/* Header bar */}
         <div
           className="flex items-center justify-between px-3 py-1.5"
           style={{
-            background: "rgba(0,229,255,0.08)",
-            borderBottom: "1px solid rgba(0,229,255,0.15)",
+            background: "rgba(216,180,254,0.08)",
+            borderBottom: "1px solid rgba(216,180,254,0.15)",
           }}
         >
           <div className="flex items-center gap-1.5">
             <motion.div
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: "#00e5ff" }}
+              style={{ background: "#d8b4fe" }}
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 0.8, repeat: Number.POSITIVE_INFINITY }}
             />
-            <span className="text-[10px] font-mono font-bold tracking-widest text-[#00e5ff]">
+            <span className="text-[10px] font-mono font-bold tracking-widest text-[#d8b4fe]">
               AO VIVO
             </span>
           </div>
@@ -440,7 +442,7 @@ export function LiveVideoPreview({
               type="button"
               onClick={() => setIsExpanded((v) => !v)}
               className="flex items-center justify-center w-4 h-4 rounded hover:opacity-70 transition-opacity"
-              style={{ color: "rgba(0,229,255,0.6)" }}
+              style={{ color: "rgba(216,180,254,0.6)" }}
               title={isExpanded ? "Recolher vídeo" : "Expandir vídeo"}
               data-ocid="capture.toggle"
             >
@@ -451,7 +453,7 @@ export function LiveVideoPreview({
               type="button"
               onClick={handleOpenFloatingWindow}
               className="flex items-center justify-center w-4 h-4 rounded hover:opacity-70 transition-opacity"
-              style={{ color: "rgba(0,229,255,0.6)" }}
+              style={{ color: "rgba(216,180,254,0.6)" }}
               title="Abrir vídeo em janela flutuante"
               data-ocid="capture.open_modal_button"
             >
@@ -502,7 +504,7 @@ export function LiveVideoPreview({
             style={{
               height: "1px",
               background:
-                "linear-gradient(90deg, transparent, rgba(0,229,255,0.4), transparent)",
+                "linear-gradient(90deg, transparent, rgba(216,180,254,0.4), transparent)",
             }}
             animate={{ top: ["0%", "100%"] }}
             transition={{
@@ -605,9 +607,9 @@ export function LiveVideoPreview({
                         filter:
                           signalDirection === "buy"
                             ? [
-                                "drop-shadow(0 0 12px rgba(0,200,83,0.6))",
-                                "drop-shadow(0 0 28px rgba(0,200,83,1))",
-                                "drop-shadow(0 0 12px rgba(0,200,83,0.6))",
+                                "drop-shadow(0 0 12px rgba(168,85,247,0.6))",
+                                "drop-shadow(0 0 28px rgba(168,85,247,1))",
+                                "drop-shadow(0 0 12px rgba(168,85,247,0.6))",
                               ]
                             : [
                                 "drop-shadow(0 0 12px rgba(255,23,68,0.6))",
@@ -634,9 +636,9 @@ export function LiveVideoPreview({
                         textShadow:
                           signalDirection === "buy"
                             ? [
-                                "0 0 20px rgba(0,200,83,0.6)",
-                                "0 0 50px rgba(0,200,83,1)",
-                                "0 0 20px rgba(0,200,83,0.6)",
+                                "0 0 20px rgba(168,85,247,0.6)",
+                                "0 0 50px rgba(168,85,247,1)",
+                                "0 0 20px rgba(168,85,247,0.6)",
                               ]
                             : [
                                 "0 0 20px rgba(255,23,68,0.6)",
@@ -686,21 +688,21 @@ export function CaptureThumb({ dataUrl, onClear }: CaptureThumbProps) {
         transition={{ duration: 0.3 }}
         className="relative rounded-xl overflow-hidden"
         style={{
-          border: "1px solid rgba(0,229,255,0.25)",
-          boxShadow: "0 0 16px rgba(0,229,255,0.08)",
+          border: "1px solid rgba(216,180,254,0.25)",
+          boxShadow: "0 0 16px rgba(216,180,254,0.08)",
         }}
       >
         {/* Header bar */}
         <div
           className="flex items-center justify-between px-3 py-1.5"
           style={{
-            background: "rgba(0,229,255,0.06)",
-            borderBottom: "1px solid rgba(0,229,255,0.15)",
+            background: "rgba(216,180,254,0.06)",
+            borderBottom: "1px solid rgba(216,180,254,0.15)",
           }}
         >
           <div className="flex items-center gap-1.5">
-            <Camera size={10} style={{ color: "#00e5ff" }} />
-            <span className="text-[10px] font-mono font-bold tracking-widest text-[#00e5ff]">
+            <Camera size={10} style={{ color: "#d8b4fe" }} />
+            <span className="text-[10px] font-mono font-bold tracking-widest text-[#d8b4fe]">
               CAPTURA DO GRÁFICO
             </span>
           </div>

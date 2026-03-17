@@ -14,10 +14,15 @@ function hashPin(username: string, pin: string): string {
   return btoa(`${username}:${pin}`);
 }
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
   const isLight = theme === "light";
   const [mode, setMode] = useState<Mode>("login");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
   const [confirmStep, setConfirmStep] = useState(false);
@@ -29,7 +34,6 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
 
   const isLoading = loginMutation.isPending || registerMutation.isPending;
 
-  // Which pin are we filling: if register and confirmStep, fill pinConfirm; else fill pin
   const activePin = mode === "register" && confirmStep ? pinConfirm : pin;
   const setActivePin =
     mode === "register" && confirmStep ? setPinConfirm : setPin;
@@ -89,8 +93,15 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
       setError("Usuário deve ter pelo menos 3 caracteres.");
       return;
     }
+    if (!email.trim()) {
+      setError("Digite seu email.");
+      return;
+    }
+    if (!isValidEmail(email.trim())) {
+      setError("Email inválido.");
+      return;
+    }
     if (!confirmStep) {
-      // First step: enter PIN
       if (pin.length < 4) {
         setError("Digite os 4 dígitos do PIN.");
         return;
@@ -99,7 +110,6 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
       setError(null);
       return;
     }
-    // Second step: confirm PIN
     if (pinConfirm.length < 4) {
       setError("Confirme os 4 dígitos do PIN.");
       return;
@@ -116,6 +126,8 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
         pinHash,
       });
       if (result.__kind__ === "ok") {
+        // Store email locally associated with username
+        localStorage.setItem(`ca_email_${username.trim()}`, email.trim());
         setSuccessMsg("Conta criada com sucesso! Faça login.");
         setTimeout(() => {
           setSuccessMsg(null);
@@ -123,6 +135,7 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
           setPin("");
           setPinConfirm("");
           setConfirmStep(false);
+          setEmail("");
         }, 1500);
       } else {
         setError(result.err || "Não foi possível criar a conta.");
@@ -143,24 +156,32 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
     setError(null);
     setSuccessMsg(null);
     setUsername("");
+    setEmail("");
   }
 
   const PIN_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
 
   const displayPin = mode === "register" && confirmStep ? pinConfirm : pin;
 
+  const inputStyle = {
+    background: isLight ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(168,85,247,0.2)",
+    color: isLight ? "#1a1a1a" : "rgba(255,255,255,0.85)",
+    caretColor: "#a855f7",
+  };
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center"
-      style={{ background: isLight ? "#f0f4f0" : "#080810", zIndex: 9999 }}
+      style={{ background: isLight ? "#f0f4f0" : "#0a0018", zIndex: 9999 }}
     >
       {/* Background grid */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: isLight
-            ? "linear-gradient(rgba(0,200,83,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,83,0.04) 1px, transparent 1px)"
-            : "linear-gradient(rgba(0,200,83,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,83,0.015) 1px, transparent 1px)",
+            ? "linear-gradient(rgba(168,85,247,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.04) 1px, transparent 1px)"
+            : "linear-gradient(rgba(168,85,247,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.015) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
         }}
       />
@@ -171,7 +192,7 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
         style={{
           height: "1px",
           background:
-            "linear-gradient(90deg, transparent, rgba(0,200,83,0.35), transparent)",
+            "linear-gradient(90deg, transparent, rgba(168,85,247,0.35), transparent)",
         }}
         animate={{ top: ["0%", "100%"] }}
         transition={{
@@ -188,68 +209,35 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="relative w-full max-w-xs mx-4 rounded-2xl overflow-hidden"
         style={{
-          background: isLight
-            ? "rgba(255,255,255,0.92)"
-            : "rgba(12,12,22,0.95)",
-          border: "1px solid rgba(0,200,83,0.25)",
+          background: isLight ? "rgba(255,255,255,0.92)" : "rgba(14,0,35,0.95)",
+          border: "1px solid rgba(168,85,247,0.25)",
           boxShadow: isLight
-            ? "0 8px 40px rgba(0,200,83,0.1), 0 2px 12px rgba(0,0,0,0.08)"
-            : "0 0 60px rgba(0,200,83,0.08), inset 0 0 40px rgba(0,200,83,0.04)",
+            ? "0 8px 40px rgba(168,85,247,0.1), 0 2px 12px rgba(0,0,0,0.08)"
+            : "0 0 60px rgba(168,85,247,0.08), inset 0 0 40px rgba(168,85,247,0.04)",
         }}
       >
         {/* Corner brackets */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            top: 0,
-            left: 0,
-            width: 16,
-            height: 16,
-            borderTop: "2px solid #00c853",
-            borderLeft: "2px solid #00c853",
-            opacity: 0.9,
-            zIndex: 1,
-          }}
-        />
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            top: 0,
-            right: 0,
-            width: 16,
-            height: 16,
-            borderTop: "2px solid #00c853",
-            borderRight: "2px solid #00c853",
-            opacity: 0.9,
-            zIndex: 1,
-          }}
-        />
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            bottom: 0,
-            left: 0,
-            width: 16,
-            height: 16,
-            borderBottom: "2px solid #00c853",
-            borderLeft: "2px solid #00c853",
-            opacity: 0.9,
-            zIndex: 1,
-          }}
-        />
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            bottom: 0,
-            right: 0,
-            width: 16,
-            height: 16,
-            borderBottom: "2px solid #00c853",
-            borderRight: "2px solid #00c853",
-            opacity: 0.9,
-            zIndex: 1,
-          }}
-        />
+        {["top-left", "top-right", "bottom-left", "bottom-right"].map((pos) => {
+          const [v, h] = pos.split("-");
+          return (
+            <div
+              key={pos}
+              className="absolute pointer-events-none"
+              style={{
+                [v]: 0,
+                [h]: 0,
+                width: 16,
+                height: 16,
+                [`border${v.charAt(0).toUpperCase() + v.slice(1)}`]:
+                  "2px solid #a855f7",
+                [`border${h.charAt(0).toUpperCase() + h.slice(1)}`]:
+                  "2px solid #a855f7",
+                opacity: 0.9,
+                zIndex: 1,
+              }}
+            />
+          );
+        })}
 
         <div className="px-6 py-7 flex flex-col items-center gap-5">
           {/* Logo */}
@@ -257,9 +245,9 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-sm font-mono"
               style={{
-                background: "linear-gradient(135deg, #00c853, #00e676)",
+                background: "linear-gradient(135deg, #7c3aed, #a855f7)",
                 color: "#000",
-                boxShadow: "0 0 20px rgba(0,200,83,0.6)",
+                boxShadow: "0 0 20px rgba(168,85,247,0.6)",
               }}
             >
               CA
@@ -269,7 +257,7 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
                 className="text-sm font-black font-mono tracking-[0.15em]"
                 style={{ color: isLight ? "#1a1a1a" : "rgba(255,255,255,0.9)" }}
               >
-                CAPTURE <span style={{ color: "#00c853" }}>ADVANCE</span>
+                CAPTURE <span style={{ color: "#a855f7" }}>ADVANCE</span>
               </div>
               <div
                 className="text-[9px] font-mono tracking-widest mt-0.5"
@@ -288,7 +276,7 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
           <div className="text-center">
             <div
               className="text-xs font-mono font-bold tracking-widest"
-              style={{ color: "rgba(0,200,83,0.8)" }}
+              style={{ color: "rgba(168,85,247,0.8)" }}
             >
               {mode === "login"
                 ? "ENTRAR"
@@ -321,24 +309,17 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
               maxLength={24}
               autoComplete="username"
               className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none transition-all"
-              style={{
-                background: isLight
-                  ? "rgba(0,0,0,0.04)"
-                  : "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(0,200,83,0.2)",
-                color: isLight ? "#1a1a1a" : "rgba(255,255,255,0.85)",
-                caretColor: "#00c853",
-              }}
+              style={inputStyle}
               data-ocid={
                 mode === "login"
                   ? "login.username_input"
                   : "register.username_input"
               }
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = "rgba(0,200,83,0.5)";
+                e.currentTarget.style.borderColor = "rgba(168,85,247,0.5)";
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = "rgba(0,200,83,0.2)";
+                e.currentTarget.style.borderColor = "rgba(168,85,247,0.2)";
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -348,6 +329,45 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
               }}
             />
           </div>
+
+          {/* Email field -- only on register, hidden during confirm step */}
+          {mode === "register" && !confirmStep && (
+            <div className="w-full">
+              <label
+                htmlFor="email"
+                className="text-[9px] font-mono tracking-widest block mb-1"
+                style={{
+                  color: isLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.3)",
+                }}
+              >
+                EMAIL
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
+                placeholder="seu@email.com"
+                maxLength={64}
+                autoComplete="email"
+                className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none transition-all"
+                style={inputStyle}
+                data-ocid="register.email_input"
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(168,85,247,0.5)";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(168,85,247,0.2)";
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRegister();
+                }}
+              />
+            </div>
+          )}
 
           {/* PIN dots */}
           <div className="flex flex-col items-center gap-2 w-full">
@@ -369,7 +389,7 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
                   animate={{
                     scale: i < displayPin.length ? 1 : 0.85,
                     background:
-                      i < displayPin.length ? "#00c853" : "transparent",
+                      i < displayPin.length ? "#a855f7" : "transparent",
                   }}
                   transition={{ duration: 0.15 }}
                   className="w-4 h-4 rounded-full"
@@ -377,13 +397,13 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
                     border: "2px solid",
                     borderColor:
                       i < displayPin.length
-                        ? "#00c853"
+                        ? "#a855f7"
                         : isLight
                           ? "rgba(0,0,0,0.2)"
                           : "rgba(255,255,255,0.2)",
                     boxShadow:
                       i < displayPin.length
-                        ? "0 0 8px rgba(0,200,83,0.7)"
+                        ? "0 0 8px rgba(168,85,247,0.7)"
                         : "none",
                   }}
                 />
@@ -402,24 +422,24 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
                 className="py-3 rounded-lg font-mono font-bold text-base transition-all active:scale-95"
                 style={{
                   background: isLight
-                    ? "rgba(0,200,83,0.07)"
-                    : "rgba(0,200,83,0.08)",
-                  border: "1px solid rgba(0,200,83,0.15)",
+                    ? "rgba(168,85,247,0.07)"
+                    : "rgba(168,85,247,0.08)",
+                  border: "1px solid rgba(168,85,247,0.15)",
                   color: isLight ? "#1a1a1a" : "rgba(255,255,255,0.8)",
                   cursor: displayPin.length >= 4 ? "default" : "pointer",
                 }}
                 onMouseEnter={(e) => {
                   if (displayPin.length < 4) {
-                    e.currentTarget.style.background = "rgba(0,200,83,0.18)";
-                    e.currentTarget.style.borderColor = "rgba(0,200,83,0.35)";
-                    e.currentTarget.style.color = "#00c853";
+                    e.currentTarget.style.background = "rgba(168,85,247,0.18)";
+                    e.currentTarget.style.borderColor = "rgba(168,85,247,0.35)";
+                    e.currentTarget.style.color = "#a855f7";
                   }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = isLight
-                    ? "rgba(0,200,83,0.07)"
-                    : "rgba(0,200,83,0.08)";
-                  e.currentTarget.style.borderColor = "rgba(0,200,83,0.15)";
+                    ? "rgba(168,85,247,0.07)"
+                    : "rgba(168,85,247,0.08)";
+                  e.currentTarget.style.borderColor = "rgba(168,85,247,0.15)";
                   e.currentTarget.style.color = isLight
                     ? "#1a1a1a"
                     : "rgba(255,255,255,0.8)";
@@ -450,24 +470,24 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
               className="py-3 rounded-lg font-mono font-bold text-base transition-all active:scale-95"
               style={{
                 background: isLight
-                  ? "rgba(0,200,83,0.07)"
-                  : "rgba(0,200,83,0.08)",
-                border: "1px solid rgba(0,200,83,0.15)",
+                  ? "rgba(168,85,247,0.07)"
+                  : "rgba(168,85,247,0.08)",
+                border: "1px solid rgba(168,85,247,0.15)",
                 color: isLight ? "#1a1a1a" : "rgba(255,255,255,0.8)",
                 cursor: displayPin.length >= 4 ? "default" : "pointer",
               }}
               onMouseEnter={(e) => {
                 if (displayPin.length < 4) {
-                  e.currentTarget.style.background = "rgba(0,200,83,0.18)";
-                  e.currentTarget.style.borderColor = "rgba(0,200,83,0.35)";
-                  e.currentTarget.style.color = "#00c853";
+                  e.currentTarget.style.background = "rgba(168,85,247,0.18)";
+                  e.currentTarget.style.borderColor = "rgba(168,85,247,0.35)";
+                  e.currentTarget.style.color = "#a855f7";
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = isLight
-                  ? "rgba(0,200,83,0.07)"
-                  : "rgba(0,200,83,0.08)";
-                e.currentTarget.style.borderColor = "rgba(0,200,83,0.15)";
+                  ? "rgba(168,85,247,0.07)"
+                  : "rgba(168,85,247,0.08)";
+                e.currentTarget.style.borderColor = "rgba(168,85,247,0.15)";
                 e.currentTarget.style.color = isLight
                   ? "#1a1a1a"
                   : "rgba(255,255,255,0.8)";
@@ -515,9 +535,9 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
                 exit={{ opacity: 0 }}
                 className="w-full text-center text-[11px] font-mono py-2 px-3 rounded-lg"
                 style={{
-                  background: "rgba(0,200,83,0.1)",
-                  border: "1px solid rgba(0,200,83,0.25)",
-                  color: "#00c853",
+                  background: "rgba(168,85,247,0.1)",
+                  border: "1px solid rgba(168,85,247,0.25)",
+                  color: "#a855f7",
                 }}
                 data-ocid="login.success_state"
               >
@@ -535,10 +555,12 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
             className="w-full py-3 rounded-lg text-sm font-mono font-black tracking-widest transition-all"
             style={{
               background: isLoading
-                ? "rgba(0,200,83,0.3)"
-                : "linear-gradient(135deg, #00c853, #00e676)",
+                ? "rgba(168,85,247,0.3)"
+                : "linear-gradient(135deg, #7c3aed, #a855f7)",
               color: "#000",
-              boxShadow: isLoading ? "none" : "0 4px 20px rgba(0,200,83,0.35)",
+              boxShadow: isLoading
+                ? "none"
+                : "0 4px 20px rgba(168,85,247,0.35)",
               cursor: isLoading ? "not-allowed" : "pointer",
             }}
             data-ocid={
@@ -569,8 +591,8 @@ export function LoginScreen({ onSuccess, theme = "dark" }: LoginScreenProps) {
                 <button
                   type="button"
                   onClick={() => switchMode("register")}
-                  className="transition-colors hover:text-[#00c853]"
-                  style={{ color: "rgba(0,200,83,0.6)" }}
+                  className="transition-colors hover:text-[#a855f7]"
+                  style={{ color: "rgba(168,85,247,0.6)" }}
                   data-ocid="login.register_link"
                 >
                   CRIAR CONTA

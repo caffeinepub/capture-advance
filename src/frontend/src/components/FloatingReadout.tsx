@@ -54,7 +54,7 @@ export function FloatingReadout({
   const dirLabel = isBuy ? "COMPRAR" : "VENDER";
   const neonColor = isBuy ? "#00c853" : "#ff1744";
   const bgGradient = isBuy
-    ? "linear-gradient(135deg, rgba(0,200,83,0.15) 0%, rgba(0,100,40,0.25) 100%)"
+    ? "linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(0,100,40,0.25) 100%)"
     : "linear-gradient(135deg, rgba(255,23,68,0.15) 0%, rgba(120,0,30,0.25) 100%)";
 
   // Extract a short 1-line summary from gemini analysis (first line)

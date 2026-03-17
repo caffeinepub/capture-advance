@@ -56,11 +56,11 @@ function RSIBar({
 }: { value: number; isLight?: boolean }) {
   const color =
     value < 30
-      ? "#00c853"
+      ? "#a855f7"
       : value > 70
         ? "#ff1744"
         : value < 40
-          ? "#00e5ff"
+          ? "#d8b4fe"
           : value > 60
             ? "#ff9100"
             : "#ffd600";
@@ -209,7 +209,7 @@ export function SignalPanel({
           ? {
               borderRadius: "0.75rem",
               boxShadow:
-                "0 0 0 2px rgba(0,200,83,0.7), 0 0 30px rgba(0,200,83,0.4), 0 0 60px rgba(0,200,83,0.15)",
+                "0 0 0 2px rgba(168,85,247,0.7), 0 0 30px rgba(168,85,247,0.4), 0 0 60px rgba(168,85,247,0.15)",
               animation: "winBorderGlow 1.2s ease-in-out infinite",
             }
           : isLossGlow
@@ -226,7 +226,7 @@ export function SignalPanel({
       <div
         className="relative flex flex-col items-center justify-center rounded-xl overflow-hidden py-8"
         style={{
-          background: isLight ? "rgba(255,255,255,0.9)" : "rgba(5,5,12,0.7)",
+          background: isLight ? "rgba(255,255,255,0.9)" : "rgba(12,0,30,0.7)",
           border: isLight
             ? "1px solid rgba(0,0,0,0.08)"
             : "1px solid rgba(255,255,255,0.07)",
@@ -291,7 +291,7 @@ export function SignalPanel({
                   color: signal.direction === "buy" ? "#00c853" : "#ff1744",
                   textShadow:
                     signal.direction === "buy"
-                      ? "0 0 40px rgba(0,200,83,0.7)"
+                      ? "0 0 40px rgba(168,85,247,0.7)"
                       : "0 0 40px rgba(255,23,68,0.7)",
                 }}
               >
@@ -356,10 +356,12 @@ export function SignalPanel({
             !isGlowBuy
               ? {
                   background: isLight ? "#e8f5e9" : "#0d1a11",
-                  color: isLight ? "rgba(0,180,60,0.5)" : "rgba(0,200,83,0.3)",
+                  color: isLight
+                    ? "rgba(0,180,60,0.5)"
+                    : "rgba(168,85,247,0.3)",
                   border: isLight
-                    ? "1px solid rgba(0,200,83,0.2)"
-                    : "1px solid rgba(0,200,83,0.15)",
+                    ? "1px solid rgba(168,85,247,0.2)"
+                    : "1px solid rgba(168,85,247,0.15)",
                 }
               : undefined
           }
@@ -368,12 +370,12 @@ export function SignalPanel({
           {isGlowBuy && (
             <>
               <motion.div
-                className="absolute inset-0 rounded-xl border-2 border-[#00c853]"
+                className="absolute inset-0 rounded-xl border-2 border-[#a855f7]"
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 0.8, repeat: Number.POSITIVE_INFINITY }}
               />
               <div
-                className="signal-pulse-ring absolute inset-0 rounded-xl border-2 border-[#00c853]"
+                className="signal-pulse-ring absolute inset-0 rounded-xl border-2 border-[#a855f7]"
                 style={{ pointerEvents: "none" }}
               />
             </>
@@ -449,7 +451,7 @@ export function SignalPanel({
                 : "rgba(0,0,0,0.6)"
               : isLight
                 ? "rgba(255,255,255,0.9)"
-                : "rgba(0,200,83,0.04)",
+                : "rgba(168,85,247,0.04)",
           border: !isWindowVisible
             ? "1px solid rgba(255,23,68,0.35)"
             : !hasCapture
@@ -457,8 +459,8 @@ export function SignalPanel({
                 ? "1px solid rgba(0,0,0,0.08)"
                 : "1px solid rgba(255,255,255,0.06)"
               : isLight
-                ? "1px solid rgba(0,200,83,0.2)"
-                : "1px solid rgba(0,200,83,0.18)",
+                ? "1px solid rgba(168,85,247,0.2)"
+                : "1px solid rgba(168,85,247,0.18)",
           backdropFilter: "blur(8px)",
           transition: "background 0.4s, border-color 0.4s",
         }}
@@ -467,10 +469,10 @@ export function SignalPanel({
         {/* Header — only shown when capture is active */}
         {hasCapture && isWindowVisible && (
           <div className="flex items-center gap-2 mb-3">
-            <Brain size={13} style={{ color: "#00c853" }} />
+            <Brain size={13} style={{ color: "#a855f7" }} />
             <span
               className="text-[11px] font-mono tracking-widest font-bold"
-              style={{ color: "#00c853" }}
+              style={{ color: "#a855f7" }}
             >
               ANÁLISE IA
             </span>
@@ -478,9 +480,9 @@ export function SignalPanel({
               <span
                 className="text-[8px] font-mono tracking-widest px-1.5 py-0.5 rounded"
                 style={{
-                  background: "rgba(0,229,255,0.1)",
-                  border: "1px solid rgba(0,229,255,0.25)",
-                  color: "#00e5ff",
+                  background: "rgba(216,180,254,0.1)",
+                  border: "1px solid rgba(216,180,254,0.25)",
+                  color: "#d8b4fe",
                 }}
               >
                 GEMINI
@@ -491,7 +493,7 @@ export function SignalPanel({
                 animate={{ opacity: [1, 0.3, 1] }}
                 transition={{ duration: 0.4, repeat: Number.POSITIVE_INFINITY }}
                 className="ml-auto w-1.5 h-1.5 rounded-full"
-                style={{ background: "#00e5ff" }}
+                style={{ background: "#d8b4fe" }}
               />
             )}
           </div>
@@ -602,11 +604,11 @@ export function SignalPanel({
                     ease: "linear",
                   }}
                 >
-                  <Brain size={18} style={{ color: "#00e5ff" }} />
+                  <Brain size={18} style={{ color: "#d8b4fe" }} />
                 </motion.div>
                 <span
                   className="text-sm font-mono font-bold tracking-widest"
-                  style={{ color: "#00e5ff" }}
+                  style={{ color: "#d8b4fe" }}
                 >
                   GEMINI ANALISANDO
                   <AnimatedDots />
@@ -617,7 +619,7 @@ export function SignalPanel({
                   <motion.div
                     key={i}
                     className="w-2 h-2 rounded-full"
-                    style={{ background: "#00e5ff" }}
+                    style={{ background: "#d8b4fe" }}
                     animate={{ opacity: [0.2, 1, 0.2] }}
                     transition={{
                       duration: 0.9,
@@ -629,7 +631,7 @@ export function SignalPanel({
               </div>
               <span
                 className="text-[10px] font-mono tracking-widest"
-                style={{ color: "rgba(0,229,255,0.35)" }}
+                style={{ color: "rgba(216,180,254,0.35)" }}
               >
                 IDENTIFICANDO PADRÕES DE CANDLE
               </span>
@@ -656,7 +658,7 @@ export function SignalPanel({
                   }}
                 >
                   <span
-                    style={{ color: "rgba(0,229,255,0.5)" }}
+                    style={{ color: "rgba(216,180,254,0.5)" }}
                     className="mr-1.5"
                   >
                     ›
@@ -667,10 +669,10 @@ export function SignalPanel({
               <p
                 className="text-[9px] font-mono tracking-widest mt-3 pt-2"
                 style={{
-                  color: "rgba(0,229,255,0.35)",
+                  color: "rgba(216,180,254,0.35)",
                   borderTop: isLight
                     ? "1px solid rgba(0,0,0,0.08)"
-                    : "1px solid rgba(0,229,255,0.1)",
+                    : "1px solid rgba(216,180,254,0.1)",
                 }}
               >
                 PADRÕES DETECTADOS · GEMINI VISION
@@ -689,7 +691,7 @@ export function SignalPanel({
                 animate={{ opacity: [0.3, 0.8, 0.3] }}
                 transition={{ duration: 1.8, repeat: Number.POSITIVE_INFINITY }}
                 className="text-[11px] font-mono tracking-widest text-center"
-                style={{ color: "rgba(0,200,83,0.5)" }}
+                style={{ color: "rgba(168,85,247,0.5)" }}
               >
                 ● CAPTURA ATIVA
               </motion.div>
@@ -712,7 +714,7 @@ export function SignalPanel({
       <div
         className="rounded-xl p-4 space-y-4"
         style={{
-          background: isLight ? "rgba(255,255,255,0.85)" : "rgba(5,5,12,0.65)",
+          background: isLight ? "rgba(255,255,255,0.85)" : "rgba(12,0,30,0.65)",
           border: isLight
             ? "1px solid rgba(0,0,0,0.08)"
             : "1px solid rgba(255,255,255,0.07)",
@@ -748,7 +750,7 @@ export function SignalPanel({
           </span>
           <div className="flex items-center gap-1.5">
             {ema9 > ema21 ? (
-              <TrendingUp size={12} className="text-[#00c853]" />
+              <TrendingUp size={12} className="text-[#a855f7]" />
             ) : (
               <TrendingDown size={12} className="text-[#ff1744]" />
             )}
@@ -765,7 +767,7 @@ export function SignalPanel({
         <div className="flex items-center justify-between text-[11px] font-mono">
           <span
             style={{
-              color: isLight ? "rgba(0,180,210,0.9)" : "rgba(0,229,255,0.8)",
+              color: isLight ? "rgba(0,180,210,0.9)" : "rgba(216,180,254,0.8)",
             }}
           >
             EMA9: {ema9.toFixed(2)}
@@ -795,8 +797,8 @@ export function SignalPanel({
           style={{
             background: isLight
               ? "rgba(255,255,255,0.85)"
-              : "rgba(5,5,12,0.65)",
-            border: `1px solid ${signal.direction === "buy" ? "rgba(0,200,83,0.2)" : "rgba(255,23,68,0.2)"}`,
+              : "rgba(12,0,30,0.65)",
+            border: `1px solid ${signal.direction === "buy" ? "rgba(168,85,247,0.2)" : "rgba(255,23,68,0.2)"}`,
             backdropFilter: "blur(8px)",
           }}
         >
@@ -837,7 +839,7 @@ export function SignalPanel({
               style={{
                 background:
                   signal.direction === "buy"
-                    ? "linear-gradient(90deg, #00c853, #00e676)"
+                    ? "linear-gradient(90deg, #7c3aed, #a855f7)"
                     : "linear-gradient(90deg, #ff1744, #ff5252)",
               }}
               initial={{ width: 0 }}

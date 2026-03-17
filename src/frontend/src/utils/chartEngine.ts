@@ -346,7 +346,7 @@ export function computeSignal(
   const direction = score > 0 ? "buy" : "sell";
   const maxScore = 100;
   const rawConf = Math.min(100, (Math.abs(score) / maxScore) * 100);
-  const confidence = Math.round(Math.max(55, Math.min(99, rawConf * 1.2)));
+  const confidence = Math.round(Math.max(70, Math.min(99, rawConf * 1.2)));
 
   const emaStatus = ema9 > ema21 ? "EMA Bullish Cross" : "EMA Bearish Cross";
 

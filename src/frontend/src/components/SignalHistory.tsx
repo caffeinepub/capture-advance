@@ -77,7 +77,7 @@ export function SignalHistory({
           border: isLight
             ? "1px solid rgba(0,0,0,0.08)"
             : "1px solid rgba(255,255,255,0.07)",
-          background: isLight ? "rgba(255,255,255,0.85)" : "rgba(5,5,12,0.65)",
+          background: isLight ? "rgba(255,255,255,0.85)" : "rgba(12,0,30,0.65)",
           backdropFilter: "blur(8px)",
         }}
         data-ocid="history.list"
@@ -225,7 +225,7 @@ export function SignalHistory({
                       <button
                         type="button"
                         onClick={() => onMarkOutcome(sig.id, SignalOutcome.win)}
-                        className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded transition-all hover:bg-[#00c853]/20 text-[#00c853]/50 hover:text-[#00c853] border border-[#00c853]/20 hover:border-[#00c853]/50"
+                        className="flex items-center gap-0.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded transition-all hover:bg-[#a855f7]/20 text-[#a855f7]/50 hover:text-[#a855f7] border border-[#a855f7]/20 hover:border-[#a855f7]/50"
                         title="Marcar como WIN"
                         data-ocid={`history.item.${markerIdx}`}
                       >
