@@ -150,6 +150,8 @@ function AppInner({
   const [srLines, setSrLines] = useState<
     { type: "support" | "resistance"; yPercent: number; price: string }[]
   >([]);
+  const [isRefreshingSR, setIsRefreshingSR] = useState(false);
+  const srIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isLiveData, setIsLiveData] = useState(false);
   const [currencyPair, setCurrencyPair] = useState<string>(() => {
     return localStorage.getItem("ca_currency_pair") || "EUR/USD";
@@ -737,6 +739,79 @@ function AppInner({
   useEffect(() => {
     geminiAnalyzeRef.current = analyzeWithGemini;
   }, [analyzeWithGemini]);
+
+  const analyzeSROnly = useCallback(async () => {
+    const frame = captureFrameRef.current?.();
+    if (!frame) return;
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+    const apiKey =
+      envKey && envKey !== "DEMO_KEY_NOT_SET" && envKey !== ""
+        ? envKey
+        : "AIzaSyAD9DFEz92g4cIPfFgQKgAn-WnVcrEhKmA";
+    setIsRefreshingSR(true);
+    try {
+      const base64 = frame.replace(/^data:image\/[a-z]+;base64,/, "");
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { inlineData: { mimeType: "image/png", data: base64 } },
+                  {
+                    text: 'Analise este gráfico de trading. Identifique os níveis de SUPORTE e RESISTÊNCIA mais relevantes e visíveis (máximo 2 suportes e 2 resistências). Responda APENAS com o JSON neste formato exato: SR_JSON:{"lines":[{"type":"support","yPercent":35,"price":"1.0850"},{"type":"resistance","yPercent":72,"price":"1.0920"}]} Onde yPercent: 0=topo do gráfico, 100=base do gráfico. Se não houver níveis claros, responda: SR_JSON:{"lines":[]}',
+                  },
+                ],
+              },
+            ],
+            generationConfig: { maxOutputTokens: 150, temperature: 0.1 },
+          }),
+        },
+      );
+      if (response.ok) {
+        const data = (await response.json()) as {
+          candidates?: Array<{
+            content?: { parts?: Array<{ text?: string }> };
+          }>;
+        };
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        const srMatch = text.match(/SR_JSON:(\{.*?\})/s);
+        if (srMatch) {
+          try {
+            const parsed = JSON.parse(srMatch[1]) as {
+              lines: {
+                type: "support" | "resistance";
+                yPercent: number;
+                price: string;
+              }[];
+            };
+            if (Array.isArray(parsed.lines)) setSrLines(parsed.lines);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setIsRefreshingSR(false);
+    }
+  }, []);
+
+  // Dedicated S/R refresh interval: every 10s when live stream is active
+  useEffect(() => {
+    if (srIntervalRef.current) clearInterval(srIntervalRef.current);
+    if (!liveStream) return;
+    srIntervalRef.current = setInterval(() => {
+      analyzeSROnly();
+    }, 10000);
+    return () => {
+      if (srIntervalRef.current) clearInterval(srIntervalRef.current);
+    };
+  }, [liveStream, analyzeSROnly]);
 
   function handleOpenPopup() {
     const url = window.location.href;
@@ -1438,6 +1513,8 @@ function AppInner({
               hasCapture={!!(liveStream || captureDataUrl)}
               theme={theme}
               srLines={srLines}
+              onRefreshSR={analyzeSROnly}
+              isRefreshingSR={isRefreshingSR}
             />
 
             <SignalHistory

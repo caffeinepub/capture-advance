@@ -39,6 +39,8 @@ interface SignalPanelProps {
     yPercent: number;
     price: string;
   }[];
+  onRefreshSR?: () => void;
+  isRefreshingSR?: boolean;
 }
 
 function AnimatedDots() {
@@ -194,6 +196,8 @@ export function SignalPanel({
   hasCapture = false,
   theme = "dark",
   srLines = [],
+  onRefreshSR,
+  isRefreshingSR = false,
 }: SignalPanelProps) {
   const isLight = theme === "light";
   const isGlowBuy = signal?.direction === "buy";
@@ -431,6 +435,8 @@ export function SignalPanel({
           signalDirection={signal?.direction ?? null}
           isAnalyzing={isAnalyzing}
           srLines={srLines}
+          onRefreshSR={onRefreshSR}
+          isRefreshingSR={isRefreshingSR}
         />
       )}
 

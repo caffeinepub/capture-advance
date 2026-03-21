@@ -5,6 +5,7 @@ import {
   ChevronUp,
   ExternalLink,
   MonitorPlay,
+  RefreshCw,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -138,6 +139,8 @@ interface LiveVideoPreviewProps {
   isAnalyzing?: boolean;
   /** support/resistance lines from Gemini analysis */
   srLines?: SRLine[];
+  onRefreshSR?: () => void;
+  isRefreshingSR?: boolean;
 }
 
 export function LiveVideoPreview({
@@ -147,6 +150,8 @@ export function LiveVideoPreview({
   signalDirection,
   isAnalyzing = false,
   srLines = [],
+  onRefreshSR,
+  isRefreshingSR = false,
 }: LiveVideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -447,6 +452,22 @@ export function LiveVideoPreview({
               data-ocid="capture.toggle"
             >
               {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {/* Refresh S/R button */}
+            <button
+              type="button"
+              onClick={onRefreshSR}
+              disabled={isRefreshingSR}
+              className="flex items-center justify-center w-4 h-4 rounded hover:opacity-70 transition-opacity disabled:opacity-30"
+              style={{
+                color: isRefreshingSR ? "#ffd600" : "rgba(216,180,254,0.6)",
+              }}
+              title="Atualizar suporte/resistência agora"
+            >
+              <RefreshCw
+                size={10}
+                className={isRefreshingSR ? "animate-spin" : ""}
+              />
             </button>
             {/* Float popup button */}
             <button
