@@ -6,6 +6,8 @@ import {
   Moon,
   Pencil,
   Sun,
+  Volume2,
+  VolumeX,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -151,6 +153,7 @@ function AppInner({
     { type: "support" | "resistance"; yPercent: number; price: string }[]
   >([]);
   const [isRefreshingSR, setIsRefreshingSR] = useState(false);
+  const [geminiPrice, setGeminiPrice] = useState<number | null>(null);
   const srIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isLiveData, setIsLiveData] = useState(false);
   const [currencyPair, setCurrencyPair] = useState<string>(() => {
@@ -176,7 +179,13 @@ function AppInner({
   const minuteSignalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPeriodicFireRef = useRef(0);
   const [floatingVisible, setFloatingVisible] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem("ca_sound_enabled");
+    return saved === null ? true : saved === "true";
+  });
   const floatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Lock analysis while a signal is active (until candle ends)
+  const analysisLockedRef = useRef(false);
 
   // Detect when window is hidden (minimized, other tab, etc.)
   useEffect(() => {
@@ -242,26 +251,31 @@ function AppInner({
   const saveSignalMutate = saveSignalMutation.mutate;
 
   /** Speak BUY or SELL signal in Portuguese using Web Speech API */
-  const speakSignal = useCallback((direction: "buy" | "sell") => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const text = direction === "buy" ? "COMPRAR" : "VENDER";
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "pt-BR";
-    utter.rate = 0.9;
-    utter.pitch = 1.1;
-    utter.volume = 1;
-    // Try to pick a Portuguese voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const ptVoice = voices.find(
-      (v) => v.lang.startsWith("pt") || v.lang.startsWith("pt-BR"),
-    );
-    if (ptVoice) utter.voice = ptVoice;
-    window.speechSynthesis.speak(utter);
-  }, []);
+  const speakSignal = useCallback(
+    (direction: "buy" | "sell") => {
+      if (!soundEnabled) return;
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const text = direction === "buy" ? "COMPRAR" : "VENDER";
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = "pt-BR";
+      utter.rate = 0.9;
+      utter.pitch = 1.1;
+      utter.volume = 1;
+      // Try to pick a Portuguese voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const ptVoice = voices.find(
+        (v) => v.lang.startsWith("pt") || v.lang.startsWith("pt-BR"),
+      );
+      if (ptVoice) utter.voice = ptVoice;
+      window.speechSynthesis.speak(utter);
+    },
+    [soundEnabled],
+  );
 
   useEffect(() => {
     if (!signal) return;
+    analysisLockedRef.current = true; // lock until candle ends
     saveSignalMutate({
       direction: signal.direction === "buy" ? Direction.buy : Direction.sell,
       timeframe,
@@ -442,6 +456,7 @@ function AppInner({
     if (minuteSignalRef.current) clearInterval(minuteSignalRef.current);
 
     const fireAnalysis = () => {
+      if (analysisLockedRef.current) return; // frozen while signal is active
       triggerRef.current?.();
       const frame = captureFrameRef.current?.();
       if (frame) geminiAnalyzeRef.current?.(frame);
@@ -471,6 +486,7 @@ function AppInner({
       const isSignalWindow = secs <= 20 && secs > 0;
 
       if (
+        !analysisLockedRef.current &&
         isSignalWindow &&
         prevCountdownRef.current > 20 &&
         !signalFiredRef.current
@@ -489,6 +505,7 @@ function AppInner({
       if (secs > 20) {
         signalFiredRef.current = false;
         voiceFiredRef.current = false;
+        analysisLockedRef.current = false; // unlock for next candle
       }
 
       prevCountdownRef.current = secs;
@@ -583,13 +600,13 @@ function AppInner({
                     },
                   },
                   {
-                    text: 'Você é um analista técnico de trading de alta precisão. Seu objetivo é identificar a direção mais provável do próximo candle com base nos padrões visíveis. REGRAS: 1) Analise os ÚLTIMOS 5 CANDLES na borda direita do gráfico. 2) Identifique o padrão predominante: Engulfing Altista/Baixista, Doji, Hammer, Shooting Star, Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Inside Bar, Pin Bar, Marubozu. 3) Considere a tendência geral dos últimos 10 candles para contexto. 4) Indique a direção com alta convicção: COMPRA (se alta probabilidade de subida) ou VENDA (se alta probabilidade de queda). 5) NÃO mencione RSI, EMA, médias móveis. 6) Se identificar o par de moedas no gráfico, inclua na última linha: PAR: XXX/YYY. 7) Identifique SUPORTE e RESISTÊNCIA visíveis no gráfico (linhas horizontais, níveis de preço relevantes). Formato da resposta: [PADRÃO]: [NOME DO PADRÃO] → [COMPRA/VENDA] [Segunda linha]: contexto breve da tendência (máx 10 palavras). SR_JSON:{"lines":[{"type":"support","yPercent":35,"price":"1.0850"},{"type":"resistance","yPercent":72,"price":"1.0920"}]} yPercent: 0=topo, 100=base. Máximo 2 suportes e 2 resistências. Se não houver, omita SR_JSON.',
+                    text: 'Você é um analista especialista em Order Flow Trading e Price Action. Analise este gráfico com máxima profundidade para gerar um sinal de ALTA PRECISÃO (70-90% de acerto). ANÁLISE OBRIGATÓRIA: 1) ORDER FLOW: Identifique candles com corpos grandes (pressão compradora/vendedora dominante), wicks longos (rejeição de preço), e desequilíbrio entre compradores e vendedores. 2) TOPOS E FUNDOS: Mapeie os swing highs (topos) e swing lows (fundos) visíveis. O preço está quebrando um topo/fundo anterior? Está em retração ou impulso? 3) ÚLTIMOS 5 CANDLES: Identifique o padrão predominante (Engulfing, Doji, Hammer, Shooting Star, Pin Bar, Inside Bar, Marubozu, Morning/Evening Star, Three Soldiers/Crows). 4) ZONA DE PREÇO: O preço está próximo de suporte/resistência forte? Está em zona de acumulação ou distribuição? 5) LEIA O PREÇO ATUAL: Leia o valor do preço atual visível no gráfico (eixo Y, última cotação). 6) DIREÇÃO FINAL: Combine todos os fatores para dar COMPRA ou VENDA com alta convicção. Se houver conflito entre sinais, prefira AGUARDAR mas se precisar escolher, escolha o mais forte. FORMATO DA RESPOSTA (siga exatamente): PADRÃO: [nome do padrão] → [COMPRA/VENDA] ORDER_FLOW: [pressão compradora/vendedora em 1 frase] TOPO_FUNDO: [quebrando topo/fundo ou em retração — 1 frase] ZONA: [próximo a suporte/resistência ou em zona livre — 1 frase] PREÇO_ATUAL: [valor lido do gráfico, ex: 1.08543] CONFIANÇA: [número entre 70 e 90]% PAR: [XXX/YYY se visível no gráfico] SR_JSON:{"lines":[{"type":"support","yPercent":35,"price":"1.0850"},{"type":"resistance","yPercent":72,"price":"1.0920"}]} yPercent: 0=topo, 100=base. Máximo 2 suportes e 2 resistências.',
                   },
                 ],
               },
             ],
             generationConfig: {
-              maxOutputTokens: 300,
+              maxOutputTokens: 500,
               temperature: 0.1,
             },
           }),
@@ -632,6 +649,19 @@ function AppInner({
         setSrLines([]);
       }
 
+      // Parse current price from Gemini response (e.g. "PREÇO_ATUAL: 1.08543")
+      const priceGeminiMatch = text.match(
+        /PRE[CÇ]O_ATUAL:\s*([0-9]+[.,][0-9]+)/i,
+      );
+      if (priceGeminiMatch) {
+        const parsedPrice = Number.parseFloat(
+          priceGeminiMatch[1].replace(",", "."),
+        );
+        if (!Number.isNaN(parsedPrice) && parsedPrice > 0) {
+          setGeminiPrice(parsedPrice);
+        }
+      }
+
       // Parse currency pair from Gemini response (e.g. "PAR: EUR/USD")
       const parMatch = text.match(/PAR:\s*([A-Z]{2,6}\/[A-Z]{2,6})/i);
       if (parMatch) {
@@ -660,11 +690,18 @@ function AppInner({
         upper.includes("VENDA") ||
         upper.includes("BAIXA");
 
-      // Extract confidence percentage if present (e.g. "75%", "80%")
-      const confMatch = text.match(/(\d{1,3})\s*%/);
-      const confidence = confMatch
-        ? Math.min(100, Math.max(70, Number.parseInt(confMatch[1], 10)))
-        : 78;
+      // Extract confidence from CONFIANÇA field first, fallback to any % found
+      const confFieldMatch = text.match(/CONFIAN[CÇ]A:\s*(\d{1,3})\s*%/i);
+      const confFallback = text.match(/(\d{1,3})\s*%/);
+      const confRaw = confFieldMatch
+        ? confFieldMatch[1]
+        : confFallback
+          ? confFallback[1]
+          : "78";
+      const confidence = Math.min(
+        90,
+        Math.max(70, Number.parseInt(confRaw, 10)),
+      );
 
       // Compute fresh indicators from latest candles state
       setCandles((prevCandles) => {
@@ -874,6 +911,13 @@ function AppInner({
       signalSensitivity: sensitivity,
     });
     toast.success("Configurações salvas");
+  }
+
+  function handleOperationDone() {
+    // Clear the visual signal but keep analysis locked until candle ends
+    setSignal(null);
+    setFloatingVisible(false);
+    if (floatingTimerRef.current) clearTimeout(floatingTimerRef.current);
   }
 
   function handleClearScreen() {
@@ -1266,6 +1310,38 @@ function AppInner({
                 {isLight ? <Moon size={11} /> : <Sun size={11} />}
               </button>
 
+              {/* Sound toggle */}
+              <button
+                type="button"
+                onClick={() =>
+                  setSoundEnabled((v) => {
+                    const next = !v;
+                    localStorage.setItem("ca_sound_enabled", String(next));
+                    return next;
+                  })
+                }
+                title={soundEnabled ? "Desligar som" : "Ligar som"}
+                className="flex items-center justify-center w-6 h-6 rounded transition-all hover:opacity-80"
+                style={{
+                  background: isLight
+                    ? "rgba(0,0,0,0.07)"
+                    : "rgba(255,255,255,0.07)",
+                  border: isLight
+                    ? "1px solid rgba(0,0,0,0.12)"
+                    : "1px solid rgba(255,255,255,0.1)",
+                  color: soundEnabled
+                    ? isLight
+                      ? "#7c3aed"
+                      : "#a855f7"
+                    : isLight
+                      ? "rgba(0,0,0,0.35)"
+                      : "rgba(255,255,255,0.25)",
+                }}
+                data-ocid="header.sound_toggle"
+              >
+                {soundEnabled ? <Volume2 size={11} /> : <VolumeX size={11} />}
+              </button>
+
               {/* Logged-in user + logout */}
               <div className="flex items-center gap-1">
                 <span
@@ -1412,7 +1488,9 @@ function AppInner({
                   letterSpacing: "0.05em",
                 }}
               >
-                {formatPrice(lastPrice, currencyPair)}
+                {liveStream && geminiPrice
+                  ? formatPrice(geminiPrice, currencyPair)
+                  : formatPrice(lastPrice, currencyPair)}
               </span>
             </div>
           </div>
@@ -1439,7 +1517,9 @@ function AppInner({
                 BID
               </span>
               <span className="text-[11px] font-mono font-bold text-[#a855f7]">
-                {formatPrice(bid, currencyPair)}
+                {liveStream && geminiPrice
+                  ? formatPrice(geminiPrice * 0.9999, currencyPair)
+                  : formatPrice(bid, currencyPair)}
               </span>
             </div>
             <div className="text-center">
@@ -1471,7 +1551,9 @@ function AppInner({
                 ASK
               </span>
               <span className="text-[11px] font-mono font-bold text-[#ff1744]">
-                {formatPrice(ask, currencyPair)}
+                {liveStream && geminiPrice
+                  ? formatPrice(geminiPrice * 1.0001, currencyPair)
+                  : formatPrice(ask, currencyPair)}
               </span>
             </div>
           </div>
@@ -1515,6 +1597,7 @@ function AppInner({
               srLines={srLines}
               onRefreshSR={analyzeSROnly}
               isRefreshingSR={isRefreshingSR}
+              onOperationDone={handleOperationDone}
             />
 
             <SignalHistory

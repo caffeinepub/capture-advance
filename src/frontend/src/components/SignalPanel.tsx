@@ -41,6 +41,7 @@ interface SignalPanelProps {
   }[];
   onRefreshSR?: () => void;
   isRefreshingSR?: boolean;
+  onOperationDone?: () => void;
 }
 
 function AnimatedDots() {
@@ -168,11 +169,36 @@ function PatternBadge({
 
 /** Extract the first 3 non-empty lines from Gemini analysis text */
 function extractCandlePatterns(text: string): string[] {
-  return text
+  const lines = text
     .split("\n")
     .map((l) => l.trim())
-    .filter(Boolean)
-    .slice(0, 3);
+    .filter(Boolean);
+  const result: string[] = [];
+  // Extract structured fields from new deep analysis format
+  for (const line of lines) {
+    if (line.startsWith("PADRÃO:") || line.startsWith("PADRAO:")) {
+      result.push(line.replace(/^PADRÃO:|^PADRAO:/, "").trim());
+    } else if (line.startsWith("ORDER_FLOW:")) {
+      result.push(`⟶ ${line.replace("ORDER_FLOW:", "").trim()}`);
+    } else if (line.startsWith("TOPO_FUNDO:")) {
+      result.push(`⤴ ${line.replace("TOPO_FUNDO:", "").trim()}`);
+    } else if (line.startsWith("ZONA:")) {
+      result.push(`◈ ${line.replace("ZONA:", "").trim()}`);
+    }
+  }
+  // fallback: return first 3 non-JSON lines
+  if (result.length === 0) {
+    return lines
+      .filter(
+        (l) =>
+          !l.startsWith("SR_JSON") &&
+          !l.startsWith("PAR:") &&
+          !l.startsWith("PREÇO") &&
+          !l.startsWith("CONFIANÇA"),
+      )
+      .slice(0, 3);
+  }
+  return result.slice(0, 4);
 }
 
 export function SignalPanel({
@@ -198,6 +224,7 @@ export function SignalPanel({
   srLines = [],
   onRefreshSR,
   isRefreshingSR = false,
+  onOperationDone,
 }: SignalPanelProps) {
   const isLight = theme === "light";
   const isGlowBuy = signal?.direction === "buy";
@@ -317,6 +344,31 @@ export function SignalPanel({
                   {signal.confidence}%
                 </span>
               </div>
+              {onOperationDone && (
+                <button
+                  type="button"
+                  onClick={onOperationDone}
+                  className="mt-3 px-5 py-2 rounded-lg font-mono font-black text-sm tracking-widest transition-all active:scale-95"
+                  style={{
+                    background:
+                      signal.direction === "buy"
+                        ? "linear-gradient(135deg, rgba(0,200,83,0.15), rgba(0,200,83,0.05))"
+                        : "linear-gradient(135deg, rgba(255,23,68,0.15), rgba(255,23,68,0.05))",
+                    border:
+                      signal.direction === "buy"
+                        ? "1.5px solid rgba(0,200,83,0.6)"
+                        : "1.5px solid rgba(255,23,68,0.6)",
+                    color: signal.direction === "buy" ? "#00c853" : "#ff1744",
+                    boxShadow:
+                      signal.direction === "buy"
+                        ? "0 0 12px rgba(0,200,83,0.25)"
+                        : "0 0 12px rgba(255,23,68,0.25)",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  ✓ OPERAÇÃO FEITA
+                </button>
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -681,7 +733,7 @@ export function SignalPanel({
                     : "1px solid rgba(216,180,254,0.1)",
                 }}
               >
-                PADRÕES DETECTADOS · GEMINI VISION
+                ORDER FLOW ANALYSIS · GEMINI VISION
               </p>
             </motion.div>
           ) : (
