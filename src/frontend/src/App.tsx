@@ -462,14 +462,14 @@ function AppInner({
       if (frame) geminiAnalyzeRef.current?.(frame);
     };
 
-    // --- Synchronized analysis: fire at exactly :30s of each minute (Brasília time) ---
-    // This replaces the unsynchronized 30s interval to prevent early fires
+    // --- Synchronized analysis: fire at exactly :00s of each minute (Brasília time) ---
+    // Fires once per minute at the top of each minute
     minuteSignalRef.current = setInterval(() => {
       // Brasília = UTC-3
       const nowBrasilia = Date.now() - 3 * 60 * 60 * 1000;
       const secsInMinute = Math.floor(nowBrasilia / 1000) % 60;
-      // Fire at the :30 second mark of each minute (30s into each minute)
-      if (secsInMinute === 30) {
+      // Fire at the :00 second mark of each minute (every 1 minute)
+      if (secsInMinute === 0) {
         const now = Date.now();
         // Avoid double-firing within 3s
         if (now - lastPeriodicFireRef.current < 3000) return;
@@ -981,6 +981,7 @@ function AppInner({
         signal={signal}
         analysis={geminiAnalysis}
         visible={floatingVisible}
+        soundEnabled={soundEnabled}
       />
       {/* Fullscreen live video background when stream is active */}
       <div

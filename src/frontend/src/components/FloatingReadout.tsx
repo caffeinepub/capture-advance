@@ -9,6 +9,7 @@ interface FloatingReadoutProps {
   } | null;
   analysis: string | null;
   visible: boolean;
+  soundEnabled: boolean;
 }
 
 /** Robotic voice synthesis using Web Audio API pitch/rate distortion */
@@ -31,6 +32,7 @@ export function FloatingReadout({
   signal,
   analysis,
   visible,
+  soundEnabled,
 }: FloatingReadoutProps) {
   const spokenRef = useRef(false);
 
@@ -42,13 +44,15 @@ export function FloatingReadout({
     if (spokenRef.current) return;
     spokenRef.current = true;
 
+    if (!soundEnabled) return;
+
     const dir = signal.direction === "buy" ? "COMPRAR" : "VENDER";
     const conf = signal.confidence;
     const patternShort = signal.pattern.split("_")[0];
     const text = `${dir}. Confiança ${conf} por cento. Padrão ${patternShort}`;
     // Small delay to let animation show first
     setTimeout(() => speakRobotic(text), 300);
-  }, [visible, signal]);
+  }, [visible, signal, soundEnabled]);
 
   const isBuy = signal?.direction === "buy";
   const dirLabel = isBuy ? "COMPRAR" : "VENDER";
